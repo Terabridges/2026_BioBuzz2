@@ -1,0 +1,30 @@
+package
+
+import
+
+public class NAME implements Subsystem {
+
+  //---------------- Hardware ----------------
+
+
+  //---------------- Software ----------------
+
+
+  //---------------- Constructor ----------------
+  public NAME(HardwareMap map) {}
+
+
+  //---------------- Core Methods ----------------
+
+
+  //---------------- Methods ----------------
+
+
+  //---------------- Interface Methods ----------------
+  @Override
+  public void toInit(){}
+
+  @Override
+  public void update(){}
+
+}
