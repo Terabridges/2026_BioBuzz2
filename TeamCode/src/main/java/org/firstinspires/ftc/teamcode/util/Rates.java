@@ -3,9 +3,9 @@ package org.firstinspires.ftc.teamcode.util;
 /**
  * Link for desmos visualization of formulas: https://www.desmos.com/calculator/ig1zzfog0r
  *
- * This code is taken from an open source flight control library called 'BetaFlight',
- * for further information, see this article:
- *  https://oscarliang.com/rates/
+ * This code is taken from an open source flight control library called 'BetaFlight'
+ * For further information, see this article:
+ * https://oscarliang.com/rates/
  */
 public class Rates {
 
@@ -15,11 +15,10 @@ public class Rates {
     private double deadzone;
 
     /**
-     *
-     * @param centerRate slope of the curve at center position
-     * @param maxRate max rate the computer reads 1
-     * @param expo blends the values of two different exponents. When expo = 0, the curve x^5 is used. when expo = 1, the curve x^5 is used
-     * @param deadzone zone that kills movement past a certain point of throttle on the Joystick.
+     * @param centerRate Slope of the response curve at joystick's center position
+     * @param maxRate Slope of the response curve at joystick's maximum value 
+     * @param expo Blends the values of two different exponential curves. When expo = 0, the curve x^5 is used. when expo = 1, the curve x^5 is used
+     * @param deadzone Zone that kills movement before a certain position on the joystick.
      */
     public Rates(double centerRate, double maxRate, double expo, double deadzone) {
         if (centerRate > maxRate) {
