@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.VoltageSensor;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
+import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,8 +23,10 @@ public class Robot {
     private static VoltageSensor voltageSensor;
 
     //---------------- Subsystems ----------------
-    private Intake intake;
-    private Outtake outtake;
+    public Intake intake;
+    public Outtake outtake;
+    public Vision vision;
+    public Drive drive;
     private List<Subsystem> subsystems;
 
     //---------------- Constructors ----------------
@@ -33,8 +36,10 @@ public class Robot {
 
         intake = new Intake(hardwareMap);
         outtake = new Outtake(hardwareMap);
+        vision = new Vision(hardwareMap);
+        drive = new Drive(hardwareMap);
 
-        subsystems = new ArrayList<>(Arrays.asList(intake, outtake));
+        subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision, drive));
 
         this.gp1 = gp1;
         this.gp2 = gp2;
@@ -58,4 +63,11 @@ public class Robot {
             s.update();
         }
     }
+
+    public void stop() {
+        for (Subsystem s : subsystems) {
+            s.stop();
+        }
+    }
+
 }
