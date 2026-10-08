@@ -35,8 +35,10 @@ android {
 
 dependencies {
     implementation project(':FtcRobotController')
+    implementation "com.bylazar:fullpanels:1.0.9"
 
     // Local JVM unit tests (src/test/java). Run with:
     //     ./gradlew :TeamCode:testDebugUnitTest
     testImplementation 'junit:junit:4.13.2'
 }
+
