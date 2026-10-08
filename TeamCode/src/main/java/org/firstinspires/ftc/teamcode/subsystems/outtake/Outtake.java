@@ -35,4 +35,7 @@ public class Outtake implements Subsystem {
         shooter.update();
         turret.update();
     }
+
+    @Override
+    public void stop(){}
 }

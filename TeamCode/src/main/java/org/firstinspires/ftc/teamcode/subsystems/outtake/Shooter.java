@@ -21,11 +21,11 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
-        leftFlywheel = map.get(DcMotorEx.class, "fly_left");
-        rightFlywheel = map.get(DcMotorEx.class, "fly_right");
-        leftFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightFlywheel.setDirection(DcMotorSimple.Direction.FORWARD);
-        hood = map.get(Servo.class, "hood");
+//        leftFlywheel = map.get(DcMotorEx.class, "fly_left");
+//        rightFlywheel = map.get(DcMotorEx.class, "fly_right");
+//        leftFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+//        rightFlywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+//        hood = map.get(Servo.class, "hood");
 
     }
 
@@ -59,6 +59,9 @@ public class Shooter implements Subsystem {
 
     @Override
     public void update(){
-        setFlywheelPow(flywheelPow);
+//        setFlywheelPow(flywheelPow);
     }
+
+    @Override
+    public void stop(){}
 }
