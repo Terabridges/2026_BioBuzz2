@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 @PsiKitAutoLog(rlogPort = 5802)
@@ -47,6 +48,10 @@ public class FlywheelVelocityTest extends LinearOpMode {
         PIDFController flywheelPID = new PIDFController(PID_P, PID_I, PID_D, PID_F);
         flywheelPID.setIntegrationBounds(-PID_INTEGRATION_LIMIT, PID_INTEGRATION_LIMIT);
         flywheelPID.setTolerance(150.0);
+        int previousLeftEncoderPosition = leftFlywheel.getCurrentPosition();
+        int previousRightEncoderPosition = rightFlywheel.getCurrentPosition();
+        long previousSampleTime = System.nanoTime();
+        boolean useRightEncoder = false;
 
         try {
             while (opModeIsActive()) {
@@ -76,8 +81,30 @@ public class FlywheelVelocityTest extends LinearOpMode {
                 previousDpadRight = gamepad1.dpad_right;
                 previousA = gamepad1.a;
 
-                double encoderRpm = Math.abs(leftFlywheel.getVelocity())
-                        * 60.0 / ENCODER_TICKS_PER_REV;
+                long sampleTime = System.nanoTime();
+                int leftEncoderPosition = leftFlywheel.getCurrentPosition();
+                int rightEncoderPosition = rightFlywheel.getCurrentPosition();
+                double sampleSeconds = Math.max(0.001,
+                    (sampleTime - previousSampleTime) / 1_000_000_000.0);
+                int leftEncoderTicks = leftEncoderPosition - previousLeftEncoderPosition;
+                int rightEncoderTicks = rightEncoderPosition - previousRightEncoderPosition;
+                previousSampleTime = sampleTime;
+                previousLeftEncoderPosition = leftEncoderPosition;
+                previousRightEncoderPosition = rightEncoderPosition;
+
+                if (leftEncoderTicks != 0 && rightEncoderTicks == 0) {
+                    useRightEncoder = false;
+                } else if (rightEncoderTicks != 0 && leftEncoderTicks == 0) {
+                    useRightEncoder = true;
+                }
+
+                double leftEncoderRpm = Math.abs(leftEncoderTicks) * 60.0
+                    / (ENCODER_TICKS_PER_REV * sampleSeconds);
+                double rightEncoderRpm = Math.abs(rightEncoderTicks) * 60.0
+                    / (ENCODER_TICKS_PER_REV * sampleSeconds);
+                double encoderRpm = useRightEncoder ? rightEncoderRpm : leftEncoderRpm;
+                double sdkVelocityRpm = Math.abs(leftFlywheel.getVelocity())
+                    * 60.0 / ENCODER_TICKS_PER_REV;
                 double power;
                 if (targetRpm == 0.0) {
                     flywheelPID.reset();
@@ -89,8 +116,23 @@ public class FlywheelVelocityTest extends LinearOpMode {
                 leftFlywheel.setPower(power);
                 rightFlywheel.setPower(power);
 
+                Logger.recordOutput("Tests/Flywheel/TargetRPM", targetRpm);
+                Logger.recordOutput("Tests/Flywheel/MeasuredRPM", encoderRpm);
+                Logger.recordOutput("Tests/Flywheel/LeftEncoderRPM", leftEncoderRpm);
+                Logger.recordOutput("Tests/Flywheel/RightEncoderRPM", rightEncoderRpm);
+                Logger.recordOutput("Tests/Flywheel/SDKVelocityRPM", sdkVelocityRpm);
+                Logger.recordOutput("Tests/Flywheel/LeftEncoderPositionTicks", leftEncoderPosition);
+                Logger.recordOutput("Tests/Flywheel/RightEncoderPositionTicks", rightEncoderPosition);
+                Logger.recordOutput("Tests/Flywheel/SharedPower", power);
+
                 telemetry.addData("Target RPM", "%.0f", targetRpm);
-                telemetry.addData("Encoder RPM (left)", "%.0f", encoderRpm);
+                telemetry.addData("Encoder RPM (position delta)", "%.0f", encoderRpm);
+                telemetry.addData("Feedback encoder", useRightEncoder ? "right" : "left");
+                telemetry.addData("Left position / ticks / RPM", "%d / %d / %.0f",
+                    leftEncoderPosition, leftEncoderTicks, leftEncoderRpm);
+                telemetry.addData("Right position / ticks / RPM", "%d / %d / %.0f",
+                    rightEncoderPosition, rightEncoderTicks, rightEncoderRpm);
+                telemetry.addData("SDK velocity RPM (left)", "%.0f", sdkVelocityRpm);
                 telemetry.addData("Configured ticks/rev", "%.1f",
                         leftFlywheel.getMotorType().getTicksPerRev());
                 telemetry.addData("Shared motor power", "%.3f", power);
