@@ -11,21 +11,10 @@ apply plugin: 'com.android.application'
 // before doing so.
 
 // Custom definitions may go here
-buildscript {
-    repositories {
-        mavenCentral()
-        maven {
-            url "https://repo.dairy.foundation/releases"
-        }
-    }
-    dependencies {
-        classpath "dev.frozenmilk:Load:0.2.4"
-    }
-}
+
 // Include common definitions from above.
 apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
-apply plugin: 'dev.frozenmilk.sinister.sloth.load'
 
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
@@ -44,15 +33,20 @@ android {
     }
 }
 
+repositories {
+    // IMPORTANT
+    maven { url 'https://repo.dairy.foundation/releases' }
+    // IMPORTANT (thanks to dairy for hosting!)
+}
+
 dependencies {
     implementation project(':FtcRobotController')
     implementation "com.bylazar:fullpanels:1.0.9"
+    implementation 'org.psilynx.psikit:core:0.2.0'
+    implementation 'org.psilynx.psikit:ftc:0.2.0'
 
     // Local JVM unit tests (src/test/java). Run with:
     //     ./gradlew :TeamCode:testDebugUnitTest
     testImplementation 'junit:junit:4.13.2'
-    implementation("dev.frozenmilk.sinister:Sloth:0.3.2")
-    implementation 'org.psilynx.psikit:core:0.2.0'
-    implementation 'org.psilynx.psikit:ftc:0.2.0'
 }
 
