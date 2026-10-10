@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.opmodes.tests;
 
+import com.arcrobotics.ftclib.controller.PIDFController;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -10,10 +11,11 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 public class FlywheelVelocityTest extends LinearOpMode {
     private static final double COARSE_RPM_STEP = 50.0;
     private static final double FINE_RPM_STEP = 10.0;
-    private static final double KP = 0.00035;
-    private static final double KI = 0.00005;
-    private static final double KD = 0.000001;
-    private static final double INTEGRAL_LIMIT = 10000.0;
+    private static final double PID_P = 0.0015;
+    private static final double PID_I = 0.0001;
+    private static final double PID_D = 0.0;
+    private static final double PID_F = 0.0002;
+    private static final double PID_INTEGRATION_LIMIT = 250.0;
 
     @Override
     public void runOpMode() {
@@ -32,9 +34,6 @@ public class FlywheelVelocityTest extends LinearOpMode {
         boolean previousDpadLeft = false;
         boolean previousDpadRight = false;
         boolean previousA = false;
-        double integral = 0.0;
-        double previousEncoderRpm = 0.0;
-        long previousTimeNanos = System.nanoTime();
 
         telemetry.addLine("D-pad up/down: +/-50 RPM | left/right: +/-10 RPM");
         telemetry.addLine("A: toggle left motor direction at 0 RPM target");
@@ -42,9 +41,9 @@ public class FlywheelVelocityTest extends LinearOpMode {
         telemetry.update();
 
         waitForStart();
-        previousTimeNanos = System.nanoTime();
-        previousEncoderRpm = Math.abs(leftFlywheel.getVelocity())
-            * 60.0 / leftFlywheel.getMotorType().getTicksPerRev();
+        PIDFController flywheelPID = new PIDFController(PID_P, PID_I, PID_D, PID_F);
+        flywheelPID.setIntegrationBounds(-PID_INTEGRATION_LIMIT, PID_INTEGRATION_LIMIT);
+        flywheelPID.setTolerance(150.0);
 
         try {
             while (opModeIsActive()) {
@@ -74,25 +73,15 @@ public class FlywheelVelocityTest extends LinearOpMode {
                 previousDpadRight = gamepad1.dpad_right;
                 previousA = gamepad1.a;
 
-                long currentTimeNanos = System.nanoTime();
-                double deltaTime = Math.max(0.001,
-                    Math.min(0.1, (currentTimeNanos - previousTimeNanos) / 1_000_000_000.0));
-                previousTimeNanos = currentTimeNanos;
-
                 double encoderRpm = Math.abs(leftFlywheel.getVelocity())
                         * 60.0 / leftFlywheel.getMotorType().getTicksPerRev();
-                double error = targetRpm - encoderRpm;
                 double power;
                 if (targetRpm == 0.0) {
-                    integral = 0.0;
+                    flywheelPID.reset();
                     power = 0.0;
                 } else {
-                    integral = Math.max(-INTEGRAL_LIMIT,
-                        Math.min(INTEGRAL_LIMIT, integral + error * deltaTime));
-                    double derivative = -(encoderRpm - previousEncoderRpm) / deltaTime;
-                    power = clip(KP * error + KI * integral + KD * derivative, 0.0, 1.0);
+                    power = clip(flywheelPID.calculate(encoderRpm, targetRpm), 0.0, 1.0);
                 }
-                previousEncoderRpm = encoderRpm;
 
                 leftFlywheel.setPower(power);
                 rightFlywheel.setPower(power);
