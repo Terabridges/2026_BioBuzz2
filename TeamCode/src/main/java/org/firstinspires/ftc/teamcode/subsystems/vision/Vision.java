@@ -312,6 +312,11 @@ public class Vision implements Subsystem {
     }
 
     @Override
+    public void logPsiKitData() {
+
+    }
+
+    @Override
     public void update() {
         limelightUpdate();
     }

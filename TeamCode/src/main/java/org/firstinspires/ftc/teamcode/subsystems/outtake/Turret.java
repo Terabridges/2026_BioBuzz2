@@ -29,6 +29,11 @@ public class Turret implements Subsystem {
     public void toInit(){}
 
     @Override
+    public void logPsiKitData() {
+
+    }
+
+    @Override
     public void update(){}
 
     @Override
