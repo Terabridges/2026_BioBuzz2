@@ -6,11 +6,14 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
+@PsiKitAutoLog(rlogPort = 5802)
 @TeleOp(name = "Flywheel Velocity PID Test", group = "Tests")
 public class FlywheelVelocityTest extends LinearOpMode {
     private static final double COARSE_RPM_STEP = 50.0;
     private static final double FINE_RPM_STEP = 10.0;
+    private static final double ENCODER_TICKS_PER_REV = 28.0;
     private static final double PID_P = 0.0015;
     private static final double PID_I = 0.0001;
     private static final double PID_D = 0.0;
@@ -74,7 +77,7 @@ public class FlywheelVelocityTest extends LinearOpMode {
                 previousA = gamepad1.a;
 
                 double encoderRpm = Math.abs(leftFlywheel.getVelocity())
-                        * 60.0 / leftFlywheel.getMotorType().getTicksPerRev();
+                        * 60.0 / ENCODER_TICKS_PER_REV;
                 double power;
                 if (targetRpm == 0.0) {
                     flywheelPID.reset();
@@ -88,6 +91,8 @@ public class FlywheelVelocityTest extends LinearOpMode {
 
                 telemetry.addData("Target RPM", "%.0f", targetRpm);
                 telemetry.addData("Encoder RPM (left)", "%.0f", encoderRpm);
+                telemetry.addData("Configured ticks/rev", "%.1f",
+                        leftFlywheel.getMotorType().getTicksPerRev());
                 telemetry.addData("Shared motor power", "%.3f", power);
                 telemetry.addData("Left direction", leftReversed ? "REVERSE" : "FORWARD");
                 telemetry.addData("Direction toggle", targetRpm == 0.0
