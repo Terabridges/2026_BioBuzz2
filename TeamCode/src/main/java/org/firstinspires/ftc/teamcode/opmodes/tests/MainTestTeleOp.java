@@ -10,9 +10,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.DriveControl;
-import org.firstinspires.ftc.teamcode.control.IntakeControl;
+import org.firstinspires.ftc.teamcode.control.Intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.VisionControl;
-import org.firstinspires.ftc.teamcode.subsystems.Drive;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 
 import java.util.ArrayList;

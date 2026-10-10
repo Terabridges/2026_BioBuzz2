@@ -133,6 +133,11 @@ public class Drive implements Subsystem{
     public void toInit(){}
 
     @Override
+    public void logPsiKitData() {
+
+    }
+
+    @Override
     public void update(){
         speed = (useSlowMode ? SLOW_MULT : FAST_MULT);
         if (manualDrive) {
