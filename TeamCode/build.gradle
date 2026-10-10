@@ -44,9 +44,17 @@ android {
     }
 }
 
+repositories {
+    // IMPORTANT
+    maven { url 'https://repo.dairy.foundation/releases' }
+    // IMPORTANT (thanks to dairy for hosting!)
+}
+
 dependencies {
     implementation project(':FtcRobotController')
     implementation "com.bylazar:fullpanels:1.0.9"
+    implementation 'org.psilynx.psikit:core:0.2.0'
+    implementation 'org.psilynx.psikit:ftc:0.2.0'
 
     // Local JVM unit tests (src/test/java). Run with:
     //     ./gradlew :TeamCode:testDebugUnitTest
