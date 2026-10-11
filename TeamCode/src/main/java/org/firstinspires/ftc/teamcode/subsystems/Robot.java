@@ -5,6 +5,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.subsystems.Other.Drive;
+import org.firstinspires.ftc.teamcode.subsystems.Other.Drive2_0;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
@@ -27,6 +29,7 @@ public class Robot {
     public Outtake outtake;
     public Vision vision;
     public Drive drive;
+    public Drive2_0 drive20;
     private List<Subsystem> subsystems;
 
     //---------------- Constructors ----------------
@@ -38,8 +41,9 @@ public class Robot {
         outtake = new Outtake(hardwareMap);
         vision = new Vision(hardwareMap);
         drive = new Drive(hardwareMap);
+        drive20 = new Drive2_0(hardwareMap);
 
-        subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision, drive));
+        subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision, drive20));
 
         this.gp1 = gp1;
         this.gp2 = gp2;
@@ -67,6 +71,12 @@ public class Robot {
     public void stop() {
         for (Subsystem s : subsystems) {
             s.stop();
+        }
+    }
+
+    public void logPsiKitData() {
+        for (Subsystem s : subsystems) {
+            s.logPsiKitData();
         }
     }
 

@@ -8,7 +8,7 @@ public class Outtake implements Subsystem {
 
     //---------------- Subsystems ----------------
     private Shooter shooter;
-    private Turret turret;
+    public Turret turret;
 
 
     //---------------- Software ----------------

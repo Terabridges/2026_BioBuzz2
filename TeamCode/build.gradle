@@ -13,13 +13,14 @@ apply plugin: 'com.android.application'
 // Custom definitions may go here
 buildscript {
     repositories {
+        google()
         mavenCentral()
         maven {
             url "https://repo.dairy.foundation/releases"
         }
     }
     dependencies {
-        classpath "dev.frozenmilk:Load:0.2.4"
+        classpath "dev.frozenmilk:Load:0.3.2"
     }
 }
 // Include common definitions from above.

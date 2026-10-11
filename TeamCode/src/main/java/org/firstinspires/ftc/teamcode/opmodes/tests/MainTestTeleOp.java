@@ -9,8 +9,10 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
+import org.firstinspires.ftc.teamcode.control.Drive2_0Control;
 import org.firstinspires.ftc.teamcode.control.DriveControl;
 import org.firstinspires.ftc.teamcode.control.Intake.IntakeControl;
+import org.firstinspires.ftc.teamcode.control.Intake.SpinnerControl;
 import org.firstinspires.ftc.teamcode.control.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 
@@ -31,7 +33,8 @@ public class MainTestTeleOp extends OpMode {
     Gamepad previousGamepad2;
     VisionControl visionControl;
     IntakeControl intakeControl;
-    DriveControl driveControl;
+    Drive2_0Control driveControl;
+    SpinnerControl spinnerControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
@@ -43,9 +46,10 @@ public class MainTestTeleOp extends OpMode {
         robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2);
         visionControl = new VisionControl(robot, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
-        driveControl = new DriveControl(robot, gamepad1, gamepad2);
+        driveControl = new Drive2_0Control(robot, gamepad1, gamepad2);
+        spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
 
-        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
+        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
 
         currentGamepad1 = new Gamepad();
         previousGamepad1 = new Gamepad();
