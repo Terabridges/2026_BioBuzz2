@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -22,11 +23,7 @@ public class Drive implements Subsystem{
     double leftBackPow = 0.0;
     double rightBackPow = 0.0;
 
-    public double FAST_MULT = 0.95;
-    public double SLOW_MULT = 0.5;
-    public double speed = SLOW_MULT;
     public boolean manualDrive = true;
-    public boolean useSlowMode = false;
     public boolean useFieldCentric = false;
 
     //---------------- Constructor ----------------
@@ -47,6 +44,7 @@ public class Drive implements Subsystem{
         backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         imu = map.get(IMU.class, "imu");
+
         // This needs to be changed to match the orientation on your robot
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
                 RevHubOrientationOnRobot.LogoFacingDirection.UP;
@@ -63,15 +61,17 @@ public class Drive implements Subsystem{
 
 
     //---------------- Methods ----------------
-    public void setDrivePowers(double lf, double rf, double lb, double rb){
+
+    /**
+     * Useless to call mathod directly, instead user should call driveFieldRelative or drive
+     * @see #drive(double, double, double)
+     * @see #driveFieldRelative(double, double, double)
+     */
+    private void setDrivePowers(double lf, double rf, double lb, double rb){
         leftFrontPow = lf;
         rightFrontPow = rf;
         leftBackPow = lb;
         rightBackPow = rb;
-    }
-
-    public void toggleSlowMode(){
-        useSlowMode = !useSlowMode;
     }
 
     public void toggleFieldCentric() {
@@ -112,7 +112,6 @@ public class Drive implements Subsystem{
         double backLeftPower = forward - right + rotate;
 
         double maxPower = 1.0;
-        double maxSpeed = 0.5;  // make this slower for outreaches
 
         // This is needed to make sure we don't pass > 1.0 to any wheel
         // It allows us to keep all of the motors in proportion to what they should
@@ -122,9 +121,14 @@ public class Drive implements Subsystem{
         maxPower = Math.max(maxPower, Math.abs(backRightPower));
         maxPower = Math.max(maxPower, Math.abs(backLeftPower));
 
-        // We multiply by maxSpeed so that it can be set lower for outreaches
+        // We divide by maxSpeed so that it can be set lower for outreaches
         // When a young child is driving the robot, we may not want to allow full
         // speed.
+        frontLeftPower /= maxPower;
+        frontRightPower /= maxPower;
+        backRightPower /= maxPower;
+        backLeftPower /= maxPower;
+
         setDrivePowers(frontLeftPower, frontRightPower, backLeftPower, backRightPower);
     }
 
@@ -133,13 +137,8 @@ public class Drive implements Subsystem{
     public void toInit(){}
 
     @Override
-    public void update(){
-        speed = (useSlowMode ? SLOW_MULT : FAST_MULT);
+    public void update() {
         if (manualDrive) {
-            leftFrontPow *= speed;
-            rightFrontPow *= speed;
-            leftBackPow *= speed;
-            rightBackPow *= speed;
             frontLeftDrive.setPower(leftFrontPow);
             frontRightDrive.setPower(rightFrontPow);
             backLeftDrive.setPower(leftBackPow);
@@ -148,7 +147,7 @@ public class Drive implements Subsystem{
     }
 
     @Override
-    public void stop(){
+    public void stop() {
         frontLeftDrive.setPower(0);
         frontRightDrive.setPower(0);
         backLeftDrive.setPower(0);
