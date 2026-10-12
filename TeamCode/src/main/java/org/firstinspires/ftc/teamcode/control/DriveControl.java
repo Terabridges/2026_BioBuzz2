@@ -35,6 +35,7 @@ public class DriveControl implements Control{
         this.gp2 = gp2;
 
         // TODO: Since slowMode and fieldCentric are things that this class cares about, we should bring both into this class
+        // Anay, can you move the drive::toggleFieldCentric to this class?
         toggleSlowEdgeDetect = new EdgeDetector(this::toggleSlowMode);
         toggleFieldCentricEdgeDetect = new EdgeDetector(drive::toggleFieldCentric);
     }
