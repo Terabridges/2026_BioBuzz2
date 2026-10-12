@@ -14,7 +14,6 @@ public class DriveControl implements Control{
     private Drive drive;
     private Gamepad gp1;
     private Gamepad gp2;
-    private Robot robot;
     private EdgeDetector toggleSlowEdgeDetect;
     private EdgeDetector toggleFieldCentricEdgeDetect;
     private boolean slowMode = false;
@@ -29,15 +28,9 @@ public class DriveControl implements Control{
     public static double turnExpo = 0.4;
 
     //--------Constructor---------
-    public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2){
-        this.drive = drive;
-        this.gp1 = gp1;
-        this.gp2 = gp2;
-    }
 
-    public DriveControl(Robot robot, Gamepad gp1, Gamepad gp2) {
-        this.robot = robot;
-        this.drive = robot.drive;
+    public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2) {
+        this.drive = drive;
         this.gp1 = gp1;
         this.gp2 = gp2;
 

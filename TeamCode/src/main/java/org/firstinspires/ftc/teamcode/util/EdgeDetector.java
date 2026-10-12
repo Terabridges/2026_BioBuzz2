@@ -2,20 +2,21 @@ package org.firstinspires.ftc.teamcode.util;
 
 public class EdgeDetector {
     public boolean isPressed = false;
-    public FallingFunc func;
+    public Runnable func;
     public boolean isRunning = false;
     public boolean isFallingDetector;
 
     //Constructor
-    public EdgeDetector(FallingFunc f) {
-        func = f;
-        isFallingDetector = false;
-    }
 
-    public EdgeDetector(FallingFunc f, boolean isFalling) {
+    public EdgeDetector(Runnable f, boolean isFalling) {
         func = f;
         isFallingDetector = isFalling;
     }
+
+    public EdgeDetector(Runnable f) {
+        this(f, false);
+    }
+
 
     public void update(boolean cond) {
         if (cond && !isPressed) { //Rising Edge
@@ -41,10 +42,5 @@ public class EdgeDetector {
     public void reset() {
         isPressed = false;
         isRunning = false;
-    }
-
-    @FunctionalInterface
-    public interface FallingFunc {
-        void run();
     }
 }

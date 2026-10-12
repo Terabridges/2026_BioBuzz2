@@ -1,14 +1,12 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
 public interface Subsystem {
-    void stop();
 
     void update();
-    void toInit();
+    void init();
 
-    default String getSubsystemName() {
-        return getClass().getSimpleName();
-    }
+    //Adding default stop and logPsiKitData methods... to be implemented in robot/main if we need them
+    default void stop() {}
 
-    void logPsiKitData();
+    default void logPsiKitData() {}
 }
