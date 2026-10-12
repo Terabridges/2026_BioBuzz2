@@ -4,79 +4,55 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
+import org.psilynx.psikit.core.Logger;
 
 public class Intake implements Subsystem {
     //---------------- Hardware -----------------
-    DcMotor intake;
-
-    //---------------- Subsystems ----------------
-
+    public Spinner spinner;
 
     //---------------- Software ----------------
-    private double megaSpinPow = 0;
-    private double overridePow = 0;
-    public boolean spinOverride = false;
-    public boolean autoSpin = true;
-    private boolean useMegaSpin = true;
+    public boolean autoIntake;
+    public boolean useSortingIntake = true;
 
 
     //---------------- Constructor ----------------
     public Intake(HardwareMap map) {
-        intake = map.get(DcMotor.class, "Intake");
+        spinner = new Spinner(map);
     }
 
     //---------------- Methods ----------------
-    private void moveMegaSpinPow(double pow){
-        intake.setPower(pow);
+    public void toggleAutoIntake(){
+        spinner.autoSpin = !spinner.autoSpin;
+        autoIntake = spinner.autoSpin;
     }
 
-    public void setMegaSpinPow(double pow){
-        megaSpinPow = pow;
+    public void toggleAutoIntake2(){
+        autoIntake = !autoIntake;
     }
 
-    public void setMegaSpinIn(){
-        megaSpinPow = 0.98;
-        overrideSpinZero();
-    }
 
-    public void setMegaSpinOut(){
-        megaSpinPow = -0.98;
-        overrideSpinZero();
-    }
-
-    public void setMegaSpinZero(){
-        megaSpinPow = 0;
-        overrideSpinZero();
-    }
-
-    public void overrideSpinIn(){
-        overridePow = 0.8;
-        spinOverride = true;
-    }
-
-    public void overrideSpinOut(){
-        overridePow = -0.8;
-        spinOverride = true;
-    }
-
-    public void overrideSpinZero(){
-        overridePow = 0;
-        spinOverride = false;
+    public double getFloodgateCurrentAmps() {
+        return spinner.getFloodgateCurrentAmps();
     }
 
     //---------------- Interface Methods ----------------
     @Override
-    public void toInit(){}
+    public void toInit(){
+        spinner.toInit();
+    }
 
     @Override
     public void update(){
-        if(spinOverride && autoSpin){
-            moveMegaSpinPow(overridePow);
-        } else if (useMegaSpin){
-            moveMegaSpinPow(megaSpinPow);
-        }
+        spinner.update();
     }
 
     @Override
     public void stop(){}
+
+    @Override
+    public void logPsiKitData() {
+        Logger.recordOutput("Subsystems/Intake/SpinnerAutoSpin", spinner.autoSpin);
+
+        spinner.logPsiKitData();
+    }
 }

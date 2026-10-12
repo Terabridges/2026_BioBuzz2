@@ -31,6 +31,11 @@ public class Outtake implements Subsystem {
     }
 
     @Override
+    public void logPsiKitData() {
+
+    }
+
+    @Override
     public void update(){
         shooter.update();
         turret.update();

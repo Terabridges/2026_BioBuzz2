@@ -58,6 +58,11 @@ public class Shooter implements Subsystem {
     }
 
     @Override
+    public void logPsiKitData() {
+
+    }
+
+    @Override
     public void update(){
 //        setFlywheelPow(flywheelPow);
     }

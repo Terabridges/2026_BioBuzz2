@@ -137,7 +137,12 @@ public class Drive implements Subsystem{
     public void toInit(){}
 
     @Override
-    public void update() {
+    public void logPsiKitData() {
+
+    }
+
+    @Override
+    public void update(){
         if (manualDrive) {
             frontLeftDrive.setPower(leftFrontPow);
             frontRightDrive.setPower(rightFrontPow);
