@@ -7,8 +7,9 @@ import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 public class Outtake implements Subsystem {
 
     //---------------- Subsystems ----------------
-    private Shooter shooter;
-    private Turret turret;
+    public final Shooter shooter;
+    public final Turret turret;
+    public final Lights lights;
 
 
     //---------------- Software ----------------
@@ -18,16 +19,19 @@ public class Outtake implements Subsystem {
     public Outtake(HardwareMap map) {
         shooter = new Shooter(map);
         turret = new Turret(map);
+        lights = new Lights(map);
     }
 
     //---------------- Methods ----------------
 
 
+
     //---------------- Interface Methods ----------------
     @Override
-    public void toInit(){
-        shooter.toInit();
-        turret.toInit();
+    public void init(){
+        shooter.init();
+        turret.init();
+        lights.init();
     }
 
     @Override
@@ -39,8 +43,7 @@ public class Outtake implements Subsystem {
     public void update(){
         shooter.update();
         turret.update();
+        lights.update();
     }
 
-    @Override
-    public void stop(){}
 }

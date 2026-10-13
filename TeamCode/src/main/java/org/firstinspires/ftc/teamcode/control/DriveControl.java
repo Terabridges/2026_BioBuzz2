@@ -14,7 +14,6 @@ public class DriveControl implements Control{
     private Drive drive;
     private Gamepad gp1;
     private Gamepad gp2;
-    private Robot robot;
     private EdgeDetector toggleSlowEdgeDetect;
     private EdgeDetector toggleFieldCentricEdgeDetect;
     private boolean slowMode = false;
@@ -29,19 +28,14 @@ public class DriveControl implements Control{
     public static double turnExpo = 0.4;
 
     //--------Constructor---------
-    public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2){
-        this.drive = drive;
-        this.gp1 = gp1;
-        this.gp2 = gp2;
-    }
 
-    public DriveControl(Robot robot, Gamepad gp1, Gamepad gp2) {
-        this.robot = robot;
-        this.drive = robot.drive;
+    public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2) {
+        this.drive = drive;
         this.gp1 = gp1;
         this.gp2 = gp2;
 
         // TODO: Since slowMode and fieldCentric are things that this class cares about, we should bring both into this class
+        // Anay, can you move the drive::toggleFieldCentric to this class?
         toggleSlowEdgeDetect = new EdgeDetector(this::toggleSlowMode);
         toggleFieldCentricEdgeDetect = new EdgeDetector(drive::toggleFieldCentric);
     }
