@@ -28,6 +28,38 @@ apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
 apply plugin: 'dev.frozenmilk.sinister.sloth.load'
 
+def robotConfigXmlFiles = [
+    'ivy_config.xml'
+]
+
+tasks.register('pushRobotConfigXml') {
+    group = 'install'
+    description = 'Push TeamCode robot configuration XML files to /sdcard/FIRST on the connected Control Hub.'
+
+    doLast {
+        def adbName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'adb.exe' : 'adb'
+        def adb = new File(android.sdkDirectory, "platform-tools/${adbName}")
+        if (!adb.isFile()) {
+            throw new GradleException("Android platform-tools adb not found: ${adb}")
+        }
+
+        def xmlDir = project.file('src/main/res/xml')
+        robotConfigXmlFiles.each { fileName ->
+            def sourceFile = new File(xmlDir, fileName)
+            if (!sourceFile.isFile()) {
+                throw new GradleException("Robot configuration XML not found: ${sourceFile}")
+            }
+            exec {
+                commandLine adb.absolutePath, 'push', sourceFile.absolutePath, '/sdcard/FIRST/'
+            }
+        }
+    }
+}
+
+tasks.named('deploySloth') {
+    finalizedBy('pushRobotConfigXml')
+}
+
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
 
