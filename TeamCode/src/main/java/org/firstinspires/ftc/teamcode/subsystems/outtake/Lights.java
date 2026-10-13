@@ -8,8 +8,8 @@ import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 public class Lights implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final Servo lightLeft;
-    private final Servo lightRight;
+    private Servo lightLeft;
+    private Servo lightRight;
 
     //---------------- Software ----------------
     private double lightLeftPos = 0;

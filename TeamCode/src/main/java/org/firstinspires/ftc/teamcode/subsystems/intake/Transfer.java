@@ -11,8 +11,8 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Transfer implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final DcMotorEx transfer;
-    private final Servo blocker;
+    private DcMotorEx transfer;
+    private Servo blocker;
     //TODO figure out which distance we are using and implement them
 
     //---------------- Software ----------------

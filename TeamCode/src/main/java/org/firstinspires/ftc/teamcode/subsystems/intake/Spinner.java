@@ -9,7 +9,7 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Spinner implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final DcMotorEx spinner;
+    private DcMotorEx spinner;
 
     //---------------- Software ----------------
     private double spinnerPow = 0.0;

@@ -35,7 +35,11 @@ public class SpinnerControl implements Control {
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
-
+        if (gp1.left_trigger > 0.05){
+            spinner.setSpinnerPow(gp1.left_trigger);
+        } else {
+            spinner.setSpinnerPow(0);
+        }
     }
 
     @Override

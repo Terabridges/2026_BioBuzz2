@@ -14,8 +14,8 @@ import java.util.List;
 public class Robot {
 
     //---------------- Objects ----------------
-    private final HardwareMap hardwareMap;
-    private final Telemetry telemetry;
+    private HardwareMap hardwareMap;
+    private Telemetry telemetry;
     private static VoltageSensor voltageSensor;
 
     //---------------- Subsystems ----------------

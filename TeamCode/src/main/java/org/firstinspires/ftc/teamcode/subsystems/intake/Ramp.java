@@ -9,9 +9,9 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Ramp implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final Servo rampLeft;
-    private final Servo rampRight;
-    private final Utility util;
+    private Servo rampLeft;
+    private Servo rampRight;
+    private Utility util;
 
 
     //---------------- Software ----------------
