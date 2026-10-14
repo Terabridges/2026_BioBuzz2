@@ -51,7 +51,7 @@ public class Ramp implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setRampPos(rampStart);
+        //setRampPos(rampStart);
     }
 
     @Override

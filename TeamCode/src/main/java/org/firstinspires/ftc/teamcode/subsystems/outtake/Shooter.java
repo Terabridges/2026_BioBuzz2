@@ -32,8 +32,9 @@ public class Shooter implements Subsystem {
     private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
     private final double SHOOTER_GEAR_RATIO = 1.0;
     private PIDFController flywheelPID;
-    public static double p = 0.0, i = 0.0, d = 0.0, f = 0.0;
-    //p = 0.0015, i = 0.0001, d = 0.0, f = 0.0002;
+    public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023;
+    //OLD: p = 0.0015, i = 0.0001, d = 0.0, f = 0.0002;
+    //NEW: p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023
     //public static double integrationBounds = 250;
     public static double flywheelTargetRPM = 0;
     private double currentRPM = 0;
@@ -48,10 +49,10 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
-        flywheelLeft = map.get(DcMotorEx.class, "fly_left");
-        flywheelRight = map.get(DcMotorEx.class, "fly_right");
-        flywheelLeft.setDirection(DcMotorSimple.Direction.REVERSE);
-        flywheelRight.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheelLeft = map.get(DcMotorEx.class, "flywheel_left");
+        flywheelRight = map.get(DcMotorEx.class, "flywheel_right");
+        flywheelLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheelRight.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -111,6 +112,10 @@ public class Shooter implements Subsystem {
         return currentRPM;
     }
 
+    public void setTargetRPM(double rpm){
+        flywheelTargetRPM = rpm;
+    }
+
     public double getTargetRPM(){
         return flywheelTargetRPM + flywheelOffset;
     }
@@ -132,7 +137,7 @@ public class Shooter implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setHoodPos(hoodStart);
+        //setHoodPos(hoodStart);
     }
 
     @Override

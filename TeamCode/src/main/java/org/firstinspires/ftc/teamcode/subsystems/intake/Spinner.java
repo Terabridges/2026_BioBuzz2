@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.subsystems.intake;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
@@ -17,6 +18,7 @@ public class Spinner implements Subsystem {
     //---------------- Constructor ----------------
     public Spinner(HardwareMap map) {
         spinner = map.get(DcMotorEx.class, "spinner");
+        spinner.setDirection(DcMotorSimple.Direction.REVERSE);
     }
 
     //---------------- Core Methods ----------------

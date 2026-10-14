@@ -16,7 +16,7 @@ public class Transfer implements Subsystem {
     //TODO figure out which distance we are using and implement them
 
     //---------------- Software ----------------
-    private Utility util;
+    private final Utility util = new Utility();
 
     private double transferPow = 0.0;
     private double blockerPos = 0.0;
@@ -56,7 +56,7 @@ public class Transfer implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setBlockerPos(blockerStart);
+        //setBlockerPos(blockerStart);
     }
 
     @Override

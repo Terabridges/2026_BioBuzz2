@@ -32,9 +32,17 @@ def robotConfigXmlFiles = [
     'ivy_config.xml'
 ]
 
+// Gradle 9 removed Project.exec(); run external commands through the injected ExecOperations service.
+interface InjectedExecOps {
+    @javax.inject.Inject
+    org.gradle.process.ExecOperations getExecOps()
+}
+
 tasks.register('pushRobotConfigXml') {
     group = 'install'
     description = 'Push TeamCode robot configuration XML files to /sdcard/FIRST on the connected Control Hub.'
+
+    def execOps = project.objects.newInstance(InjectedExecOps).execOps
 
     doLast {
         def adbName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'adb.exe' : 'adb'
@@ -49,7 +57,7 @@ tasks.register('pushRobotConfigXml') {
             if (!sourceFile.isFile()) {
                 throw new GradleException("Robot configuration XML not found: ${sourceFile}")
             }
-            exec {
+            execOps.exec {
                 commandLine adb.absolutePath, 'push', sourceFile.absolutePath, '/sdcard/FIRST/'
             }
         }
@@ -88,7 +96,6 @@ dependencies {
     implementation "com.bylazar:fullpanels:1.0.9"
     implementation 'org.psilynx.psikit:core:0.2.0'
     implementation 'org.psilynx.psikit:ftc:0.2.0'
-    implementation 'org.ftclib.ftclib:core:2.1.1'
 
     // Local JVM unit tests (src/test/java). Run with:
     //     ./gradlew :TeamCode:testDebugUnitTest

@@ -93,7 +93,7 @@ public class Turret implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setTurret(turretStartPos);
+        //setTurret(turretStartPos);
         loopTimer.reset();
     }
 

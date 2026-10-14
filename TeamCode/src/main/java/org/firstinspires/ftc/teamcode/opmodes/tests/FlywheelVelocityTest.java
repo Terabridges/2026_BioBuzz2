@@ -14,8 +14,8 @@ public class FlywheelVelocityTest extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        DcMotorEx leftFlywheel = hardwareMap.get(DcMotorEx.class, "fly_left");
-        DcMotorEx rightFlywheel = hardwareMap.get(DcMotorEx.class, "fly_right");
+        DcMotorEx leftFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_left");
+        DcMotorEx rightFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_right");
 
         leftFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFlywheel.setDirection(DcMotorSimple.Direction.FORWARD);
