@@ -90,6 +90,8 @@ public class Turret implements Subsystem {
         return turretCurrentPos == turretTargetPos;
     }
 
+    public double getRightTurretOffset(){return rightTurretOffset;}
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){

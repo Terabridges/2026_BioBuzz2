@@ -93,7 +93,7 @@ repositories {
 
 dependencies {
     implementation project(':FtcRobotController')
-    implementation "com.bylazar:fullpanels:1.0.9"
+    implementation("com.bylazar.sloth:fullpanels:0.3.2+1.0.13")
     implementation 'org.psilynx.psikit:core:0.2.0'
     implementation 'org.psilynx.psikit:ftc:0.2.0'
 

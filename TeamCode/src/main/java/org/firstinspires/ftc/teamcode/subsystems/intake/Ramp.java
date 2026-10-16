@@ -48,6 +48,8 @@ public class Ramp implements Subsystem {
         rampPos = pos;
     }
 
+    public double getRightRampOffset(){return rightRampOffset;}
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
