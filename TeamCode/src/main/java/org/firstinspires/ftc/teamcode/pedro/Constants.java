@@ -18,10 +18,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 public class Constants {
     public static MecanumConfig drivetrainConfig = new MecanumConfig(c -> {
-        c.frontLeftName.set("FrontLeft");
-        c.frontRightName.set("FrontRight");
-        c.backLeftName.set("BackLeft");
-        c.backRightName.set("BackRight");
+        c.frontLeftName.set("front_left");
+        c.frontRightName.set("front_right");
+        c.backLeftName.set("back_left");
+        c.backRightName.set("back_right");
         c.frontLeftDirection.set(DcMotorSimple.Direction.FORWARD);
         c.frontRightDirection.set(DcMotorSimple.Direction.REVERSE);
         c.backLeftDirection.set(DcMotorSimple.Direction.FORWARD);

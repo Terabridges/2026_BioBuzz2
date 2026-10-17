@@ -17,7 +17,9 @@ import org.firstinspires.ftc.teamcode.control.Drive2_0Control;
 import org.firstinspires.ftc.teamcode.control.Intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.Intake.SpinnerControl;
 import org.firstinspires.ftc.teamcode.control.VisionControl;
+import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 import org.firstinspires.ftc.teamcode.util.PoseLogging;
 import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
@@ -59,8 +61,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
-
-        follower = robot.drive20.follower;
+        follower = FollowerManager.getInstance(hardwareMap);
         follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
 
         currentGamepad1 = new Gamepad();
@@ -95,8 +96,8 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         controlsUpdate();
         robot.update();
 
-        if ((gamepad1.y && !previousGamepad1.y) && (visionControl.vision.hasTarget())) {
-            Pose targetPose = visionControl.vision.getPredictiveInterceptPose(follower.pose());
+        if ((gamepad1.y && !previousGamepad1.y) && (robot.vision.hasTarget())) {
+            Pose targetPose = robot.vision.getPredictiveInterceptPose(follower.pose());
             if (targetPose != null) {
                 driveToLocationAuto(targetPose);
             }
@@ -119,7 +120,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     }
 
     public void logPsiKitData() {
-        Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(visionControl.vision.getPredictiveInterceptPose(follower.pose())));
+        Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(robot.vision.getPredictiveInterceptPose(follower.pose())));
         PoseLogging.logMainPoseDetails(robot);
     }
 
@@ -134,7 +135,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             for (Control c : controls) {
                 c.addTelemetry(joinedTelemetry);
             }
-            joinedTelemetry.addData("TargetPose:", visionControl.vision.getPredictiveInterceptPose(follower.pose()));
+            joinedTelemetry.addData("TargetPose:", robot.vision.getPredictiveInterceptPose(follower.pose()));
             joinedTelemetry.update();
             telemetryTimer.reset();
         }

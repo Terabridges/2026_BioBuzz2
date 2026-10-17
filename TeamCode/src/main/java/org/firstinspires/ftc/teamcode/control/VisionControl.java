@@ -6,11 +6,11 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
+import org.firstinspires.ftc.teamcode.subsystems.Vision;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 
 public class VisionControl implements Control {
-    public Vision vision;
+    Vision vision;
     Gamepad gp1;
     Gamepad gp2;
     Robot robot;

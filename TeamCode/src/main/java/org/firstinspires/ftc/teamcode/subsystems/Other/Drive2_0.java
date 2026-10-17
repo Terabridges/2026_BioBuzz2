@@ -10,21 +10,23 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
+import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 
 public class Drive2_0 implements Subsystem {
-    //----------Hardware-------------
-    public Follower follower;
+    //---------Hardware--------------
+    private Follower follower;
 
     //----------Software--------------
     public boolean isRobotCentric = false;
     public boolean isDriveOrHold = true;
 
     public Drive2_0(HardwareMap hardwareMap){
-        follower = Constants.create(hardwareMap);
+        follower = FollowerManager.getInstance(hardwareMap);
     }
     //-----------Methods---------------
     public void robotCentric(double forward, double lateral, double turn) {
+
         follower.manual(forward, lateral, turn);
     }
 

@@ -9,11 +9,13 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.psilynx.psikit.core.Logger;
-import org.psilynx.psikit.core.wpi.math.Pose2d;
 
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class Vision implements Subsystem {
 
@@ -37,6 +39,11 @@ public class Vision implements Subsystem {
     private final double TARGET_HEIGHT_INCHES = 2.86; // Estimated height of the pollen object
     private final double CAMERA_PITCH_DEGREES = 20; // Camera angled downwards x degrees
     private final double CAMERA_FORWARD_OFFSET = 4.72441; // Distance from robot center to camera lens
+    private final double[][] homographyMatrix = {
+            { 3.73030,  53.97050,  -3070.62252 },
+            {-3.12343,  54.02959,  1843.95571 },
+            { 0.00012,  0.01433,   1.00000 }
+    };
 
     private double smoothedVelocityX = 0;
     private double smoothedVelocityY = 0;
@@ -53,8 +60,16 @@ public class Vision implements Subsystem {
     private String connectionStatus = "Disconnected"; //Status tracker
 
     //--------Constructor--------
-    public Vision(HardwareMap map) {
+    private Vision(HardwareMap map) {
         limelight = map.get(Limelight3A.class, "limelight");
+    }
+    private static Vision instance = null;
+    public static Vision getInstance(HardwareMap map) {
+        if (instance == null) {
+            instance = new Vision(map);
+        }
+
+        return instance;
     }
 
     //---------Methods-----------
@@ -65,10 +80,6 @@ public class Vision implements Subsystem {
 
     private void limelightUpdate() {
         latest = limelight.getLatestResult();
-    }
-
-    private void logFeedToLogger() {
-        //This will be used for PsiKit later
     }
 
     public boolean hasTarget() {
@@ -238,24 +249,93 @@ public class Vision implements Subsystem {
         }
         return latest.getFiducialResults().get(0).getFiducialId();
     }
-    public Pose3D getLatestBotPose()
+    public Optional<Pose3D> getLatestBotPose()
     {
-        if (latest == null || !latest.isValid()) {
-            return null;
+        Optional<LLResult> latestOpt = Optional.ofNullable(latest);
+
+        Optional<Pose3D> foo = latestOpt.map(LLResult::getBotpose_MT2);
+        if (foo.isEmpty()) {
+            return latestOpt.map(LLResult::getBotpose);
         }
-        try {
-            Pose3D mt2 = latest.getBotpose_MT2();
-            if (mt2 != null) {
-                return mt2;
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            return latest.getBotpose();
-        } catch (Throwable ignored) {
-            return null;
-        }
+
+        return foo;
     }
+
+    private List<LLResultTypes.DetectorResult> detectorResults() {
+        return Optional.ofNullable(latest).map(LLResult::getDetectorResults).orElseGet(Collections::emptyList);
+    }
+
+    private DetectedBall toDetectedBall(LLResultTypes.DetectorResult result, Pose robotPose) {
+        DetectedBall.BallType type = parseType(result.getClassName());
+
+        double cameraX = result.getTargetXPixels();
+        double cameraY = result.getTargetYPixels();
+
+        double[] relativeCoords = applyPerspectiveTransform(cameraX, cameraY);
+        double maybeWrongX = relativeCoords[0];
+        double maybeWrongY = relativeCoords[1];
+
+        double headingRad = robotPose.heading();
+        double relativeX = robotPose.x() + (maybeWrongX * Math.cos(headingRad) - maybeWrongY * Math.sin(headingRad));
+        double relativeY = robotPose.y() + (maybeWrongX * Math.sin(headingRad) + maybeWrongY * Math.cos(headingRad));
+
+        return new DetectedBall(
+                type,
+                result.getConfidence(),
+                result.getClassId(),
+                result.getTargetArea(),
+                cameraX, cameraY,
+                relativeX, relativeY
+        );
+    }
+
+    public List<Cluster> getClusters(Pose robotPose) {
+        List<Cluster> clusters = new ArrayList<>();
+
+        for (LLResultTypes.DetectorResult res : detectorResults()) {
+            DetectedBall ball = toDetectedBall(res, robotPose);
+            boolean added = false;
+
+            for (Cluster cluster : clusters) {
+                if (cluster.belongs(ball)) {
+                    cluster.add(ball);
+                    added = true;
+                    break;
+                }
+            }
+
+            if (!added) {
+                Cluster newCluster = new Cluster();
+                newCluster.add(ball);
+                clusters.add(newCluster);
+            }
+        }
+
+        return clusters;
+    }
+    private DetectedBall.BallType parseType(String name) {
+        if ("red nectar".equalsIgnoreCase(name)) return DetectedBall.BallType.RED;
+        if ("blue nectar".equalsIgnoreCase(name)) return DetectedBall.BallType.BLUE;
+        return DetectedBall.BallType.POLLEN;
+    }
+
+    private double[] applyPerspectiveTransform(double camX, double camY) {
+        double[][] H = homographyMatrix;
+
+        // Matrix-vector multiplication [H] * [camX, camY, 1]^T
+        double targetX = H[0][0] * camX + H[0][1] * camY + H[0][2];
+        double targetY = H[1][0] * camX + H[1][1] * camY + H[1][2];
+        double w       = H[2][0] * camX + H[2][1] * camY + H[2][2];
+
+        // Normalize by homogenous coordinate scale factor w
+        if (w != 0.0) {
+            targetX /= w;
+            targetY /= w;
+        }
+
+        return new double[]{ targetX, targetY };
+    }
+
     //-------------Snapshot Methods---------------
     public void startSnapshotServer() {
         connectionStatus = "Attempting to connect to " + LAPTOP_IP + "...";
