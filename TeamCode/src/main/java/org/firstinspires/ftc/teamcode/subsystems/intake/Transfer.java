@@ -31,6 +31,7 @@ public class Transfer implements Subsystem {
     public Transfer(HardwareMap map) {
         transfer = map.get(DcMotorEx.class, "transfer");
         blocker = map.get(Servo.class, "blocker");
+        util = new Utility();
 
     }
 

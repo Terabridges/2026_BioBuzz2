@@ -32,6 +32,7 @@ public class Shooter implements Subsystem {
         flywheelLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheelRight.setDirection(DcMotorSimple.Direction.FORWARD);
         hood = map.get(Servo.class, "hood");
+        util = new Utility();
     }
 
     //---------------- Core Methods ----------------

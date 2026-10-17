@@ -28,10 +28,10 @@ public class Drive implements Subsystem {
 
     //---------------- Constructor ----------------
     public Drive(HardwareMap map) {
-        frontLeftDrive = map.get(DcMotor.class, "FrontLeft");
-        frontRightDrive = map.get(DcMotor.class, "FrontRight");
-        backLeftDrive = map.get(DcMotor.class, "BackLeft");
-        backRightDrive = map.get(DcMotor.class, "BackRight");
+        frontLeftDrive = map.get(DcMotor.class, "front_left");
+        frontRightDrive = map.get(DcMotor.class, "front_right");
+        backLeftDrive = map.get(DcMotor.class, "back_left");
+        backRightDrive = map.get(DcMotor.class, "back_right");
 
         frontRightDrive.setDirection(DcMotor.Direction.REVERSE);
         backRightDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -43,7 +43,7 @@ public class Drive implements Subsystem {
         backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        imu = map.get(IMU.class, "imu");
+//        imu = map.get(IMU.class, "imu");
 
         // This needs to be changed to match the orientation on your robot
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
@@ -53,7 +53,7 @@ public class Drive implements Subsystem {
 
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
-        imu.initialize(new IMU.Parameters(orientationOnRobot));
+//        imu.initialize(new IMU.Parameters(orientationOnRobot));
     }
 
 
