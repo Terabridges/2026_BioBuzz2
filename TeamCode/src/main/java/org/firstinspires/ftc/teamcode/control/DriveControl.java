@@ -4,8 +4,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.subsystems.Drive;
-import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.subsystems.other.Drive;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 import org.firstinspires.ftc.teamcode.util.Rates;
 

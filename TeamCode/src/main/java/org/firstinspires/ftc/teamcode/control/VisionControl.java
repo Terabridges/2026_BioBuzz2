@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.control;
 
+import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.subsystems.Vision;
+import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 
 public class VisionControl implements Control {

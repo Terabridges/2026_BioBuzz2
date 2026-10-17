@@ -5,13 +5,14 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
+import org.psilynx.psikit.core.Logger;
 
 public class Intake implements Subsystem {
 
     //---------------- Subsystems ----------------
-    public final Ramp ramp;
-    public final Spinner spinner;
-    public final Transfer transfer;
+    public Ramp ramp;
+    public Spinner spinner;
+    public Transfer transfer;
 
     //---------------- Software ----------------
 

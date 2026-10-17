@@ -13,11 +13,11 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Turret implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final Servo turretLeft;
-    private final Servo turretRight;
-    private final AnalogInput turretAnalog;
-    private final AbsoluteAnalogEncoder turretEnc;
-    private final Utility util;
+    private Servo turretLeft;
+    private Servo turretRight;
+    private AnalogInput turretAnalog;
+    private AbsoluteAnalogEncoder turretEnc;
+    private Utility util;
 
     //---------------- Software ----------------
     private final double rightTurretOffset = -0.008;
@@ -90,10 +90,12 @@ public class Turret implements Subsystem {
         return turretCurrentPos == turretTargetPos;
     }
 
+    public double getRightTurretOffset(){return rightTurretOffset;}
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setTurret(turretStartPos);
+        //setTurret(turretStartPos);
         loopTimer.reset();
     }
 
