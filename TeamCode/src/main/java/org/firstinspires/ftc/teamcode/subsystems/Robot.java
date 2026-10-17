@@ -64,7 +64,7 @@ public class Robot {
     //---------------- Interface Methods ----------------
     public void toInit() {
         for (Subsystem s : subsystems) {
-            s.toInit();
+            s.init();
         }
     }
 

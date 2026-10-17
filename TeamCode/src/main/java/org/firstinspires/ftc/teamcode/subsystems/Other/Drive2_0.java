@@ -62,7 +62,7 @@ public class Drive2_0 implements Subsystem {
 
     //-----------Interface--------------
     @Override
-    public void toInit() {
+    public void init() {
 
     }
 

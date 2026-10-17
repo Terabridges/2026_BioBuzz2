@@ -388,7 +388,7 @@ public class Vision implements Subsystem {
 
     //---------Interface Methods---------
     @Override
-    public void toInit() {
+    public void init() {
         limelightInit();
         startSnapshotServer();
     }

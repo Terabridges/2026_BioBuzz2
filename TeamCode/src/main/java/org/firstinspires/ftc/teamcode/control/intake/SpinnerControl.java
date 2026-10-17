@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.control.Intake;
+package org.firstinspires.ftc.teamcode.control.intake;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
@@ -24,10 +24,8 @@ public class SpinnerControl implements Control {
     }
 
     public SpinnerControl(Robot robot, Gamepad gp1, Gamepad gp2) {
+        this(robot.intake, gp1, gp2);
         this.robot = robot;
-        this.spinner = robot.intake.spinner;
-        this.gp1 = gp1;
-        this.gp2 = gp2;
     }
 
     //---------------- Methods ----------------

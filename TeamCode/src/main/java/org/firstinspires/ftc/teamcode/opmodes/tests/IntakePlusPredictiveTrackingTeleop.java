@@ -14,12 +14,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.Drive2_0Control;
-import org.firstinspires.ftc.teamcode.control.Intake.IntakeControl;
-import org.firstinspires.ftc.teamcode.control.Intake.SpinnerControl;
+import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
+import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
 import org.firstinspires.ftc.teamcode.control.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 import org.firstinspires.ftc.teamcode.util.PoseLogging;
 import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;

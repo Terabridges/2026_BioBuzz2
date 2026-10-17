@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.control.Intake;
+package org.firstinspires.ftc.teamcode.control.intake;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
@@ -13,7 +13,6 @@ public class IntakeControl implements Control {
     Gamepad gp1;
     Gamepad gp2;
     Robot robot;
-    public EdgeDetector toggleAutoIntake = new EdgeDetector(()-> intake.toggleAutoIntake2());
 
     public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2){
         this.intake = intake;
@@ -30,7 +29,7 @@ public class IntakeControl implements Control {
 
     @Override
     public void update() {
-        toggleAutoIntake.update(gp1.dpad_down);
+
     }
 
     @Override

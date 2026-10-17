@@ -14,6 +14,7 @@ public class Spinner implements Subsystem {
     //---------------- Software ----------------
     private double spinnerPow = 0.0;
 
+
     //---------------- Constructor ----------------
     public Spinner(HardwareMap map) {
         spinner = map.get(DcMotorEx.class, "spinner");
@@ -37,4 +38,6 @@ public class Spinner implements Subsystem {
     public void update(){
         setSpinner(spinnerPow);
     }
+
+
 }

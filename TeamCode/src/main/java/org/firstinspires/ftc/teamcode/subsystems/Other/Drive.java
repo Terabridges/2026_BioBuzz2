@@ -143,11 +143,6 @@ public class Drive implements Subsystem {
     }
 
     @Override
-    public void logPsiKitData() {
-
-    }
-
-    @Override
     public void update(){
         if (manualDrive) {
             frontLeftDrive.setPower(leftFrontPow);
