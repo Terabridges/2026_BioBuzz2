@@ -3,10 +3,8 @@ package org.firstinspires.ftc.teamcode.control;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.subsystems.Other.Drive2_0;
+import org.firstinspires.ftc.teamcode.subsystems.other.Drive2_0;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
-import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 
 public class Drive2_0Control implements Control{

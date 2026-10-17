@@ -1,15 +1,13 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
-import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
-import org.firstinspires.ftc.teamcode.subsystems.Other.Drive;
-import org.firstinspires.ftc.teamcode.subsystems.Other.Drive2_0;
+import org.firstinspires.ftc.teamcode.subsystems.other.Drive;
+import org.firstinspires.ftc.teamcode.subsystems.other.Drive2_0;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;

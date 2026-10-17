@@ -1,7 +1,4 @@
-package org.firstinspires.ftc.teamcode.subsystems.Other;
-
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gamepad1;
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+package org.firstinspires.ftc.teamcode.subsystems.other;
 
 import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.Follower;
@@ -9,13 +6,12 @@ import com.pedropathing.follower.ManualDrive;
 import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 
 public class Drive2_0 implements Subsystem {
     //---------Hardware--------------
-    public Follower follower;
+    private Follower follower;
 
     //----------Software--------------
     public boolean isRobotCentric = false;
@@ -57,6 +53,9 @@ public class Drive2_0 implements Subsystem {
     }
     public boolean isBusy() {
         return follower.isBusy();
+    }
+    public Follower getFollower() {
+        return follower;
     }
 
 

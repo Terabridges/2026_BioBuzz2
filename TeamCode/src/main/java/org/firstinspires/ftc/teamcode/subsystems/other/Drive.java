@@ -1,6 +1,5 @@
-package org.firstinspires.ftc.teamcode.subsystems.Other;
+package org.firstinspires.ftc.teamcode.subsystems.other;
 
-import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;

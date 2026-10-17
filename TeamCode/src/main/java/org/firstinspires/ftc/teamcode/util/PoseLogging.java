@@ -16,7 +16,7 @@ public final class PoseLogging {
             return;
         }
 
-        Pose followerPose = (robot.drive20.follower != null) ? robot.drive20.follower.pose() : null;
+        Pose followerPose = (robot.drive20.getFollower() != null) ? robot.drive20.getFollower().pose() : null;
         Pose2d pinpointFtcPose = null;
         if (followerPose != null) {
             Logger.recordOutput("Pinpoint/X", followerPose.x());
@@ -31,9 +31,9 @@ public final class PoseLogging {
             Logger.recordOutput("Pinpoint/TotalHeadingDeg", Double.NaN);
         }
 
-        if (robot.drive20.follower != null &&robot.drive20.follower.velocity() != null) {
-            Logger.recordOutput("Pinpoint/VelX", robot.drive20.follower.velocity().vx);
-            Logger.recordOutput("Pinpoint/VelY", robot.drive20.follower.velocity().vy);
+        if (robot.drive20.getFollower() != null &&robot.drive20.getFollower().velocity() != null) {
+            Logger.recordOutput("Pinpoint/VelX", robot.drive20.getFollower().velocity().vx);
+            Logger.recordOutput("Pinpoint/VelY", robot.drive20.getFollower().velocity().vy);
         } else {
             Logger.recordOutput("Pinpoint/VelX", Double.NaN);
             Logger.recordOutput("Pinpoint/VelY", Double.NaN);
