@@ -30,6 +30,18 @@ public class Spinner implements Subsystem {
         spinnerPow = pow;
     }
 
+    public void setSpinnerSpinIn() {
+        spinnerPow = 0.98;
+    }
+
+    public void setSpinnerSpinOut() {
+        spinnerPow = -0.98;
+    }
+
+    public void setSpinnerSpinZero() {
+        spinnerPow = 0.0;
+    }
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){}
