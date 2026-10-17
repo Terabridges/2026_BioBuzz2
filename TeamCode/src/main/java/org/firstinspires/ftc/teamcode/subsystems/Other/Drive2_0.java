@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 
 public class Drive2_0 implements Subsystem {
     //---------Hardware--------------
-    private Follower follower;
+    public Follower follower;
 
     //----------Software--------------
     public boolean isRobotCentric = false;
