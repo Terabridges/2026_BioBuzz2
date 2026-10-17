@@ -10,9 +10,9 @@ import org.psilynx.psikit.core.Logger;
 public class Intake implements Subsystem {
 
     //---------------- Subsystems ----------------
-    public final Ramp ramp;
-    public final Spinner spinner;
-    public final Transfer transfer;
+    public Ramp ramp;
+    public Spinner spinner;
+    public Transfer transfer;
 
     //---------------- Software ----------------
 

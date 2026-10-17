@@ -9,9 +9,9 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Ramp implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final Servo rampLeft;
-    private final Servo rampRight;
-    private final Utility util;
+    private Servo rampLeft;
+    private Servo rampRight;
+    private Utility util;
 
 
     //---------------- Software ----------------
@@ -48,10 +48,12 @@ public class Ramp implements Subsystem {
         rampPos = pos;
     }
 
+    public double getRightRampOffset(){return rightRampOffset;}
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setRampPos(rampStart);
+        //setRampPos(rampStart);
     }
 
     @Override

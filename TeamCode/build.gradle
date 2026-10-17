@@ -28,6 +28,46 @@ apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
 apply plugin: 'dev.frozenmilk.sinister.sloth.load'
 
+def robotConfigXmlFiles = [
+    'ivy_config.xml'
+]
+
+// Gradle 9 removed Project.exec(); run external commands through the injected ExecOperations service.
+interface InjectedExecOps {
+    @javax.inject.Inject
+    org.gradle.process.ExecOperations getExecOps()
+}
+
+tasks.register('pushRobotConfigXml') {
+    group = 'install'
+    description = 'Push TeamCode robot configuration XML files to /sdcard/FIRST on the connected Control Hub.'
+
+    def execOps = project.objects.newInstance(InjectedExecOps).execOps
+
+    doLast {
+        def adbName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'adb.exe' : 'adb'
+        def adb = new File(android.sdkDirectory, "platform-tools/${adbName}")
+        if (!adb.isFile()) {
+            throw new GradleException("Android platform-tools adb not found: ${adb}")
+        }
+
+        def xmlDir = project.file('src/main/res/xml')
+        robotConfigXmlFiles.each { fileName ->
+            def sourceFile = new File(xmlDir, fileName)
+            if (!sourceFile.isFile()) {
+                throw new GradleException("Robot configuration XML not found: ${sourceFile}")
+            }
+            execOps.exec {
+                commandLine adb.absolutePath, 'push', sourceFile.absolutePath, '/sdcard/FIRST/'
+            }
+        }
+    }
+}
+
+tasks.named('deploySloth') {
+    finalizedBy('pushRobotConfigXml')
+}
+
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
 
@@ -53,7 +93,7 @@ repositories {
 
 dependencies {
     implementation project(':FtcRobotController')
-    implementation "com.bylazar:fullpanels:1.0.9"
+    implementation("com.bylazar.sloth:fullpanels:0.3.2+1.0.13")
     implementation 'org.psilynx.psikit:core:0.2.0'
     implementation 'org.psilynx.psikit:ftc:0.2.0'
 

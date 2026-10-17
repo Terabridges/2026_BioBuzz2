@@ -35,7 +35,11 @@ public class TransferControl implements Control {
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
-
+        if (gp1.right_trigger > 0.05){
+            transfer.setTransferPow(gp1.right_trigger);
+        } else {
+            transfer.setTransferPow(0);
+        }
     }
 
     @Override

@@ -1,9 +1,9 @@
 package org.firstinspires.ftc.teamcode.subsystems.other;
 
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.bylazar.configurables.annotations.Configurable;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
@@ -15,7 +15,7 @@ public class Drive implements Subsystem {
     private DcMotor frontRightDrive;
     private DcMotor backLeftDrive;
     private DcMotor backRightDrive;
-    private IMU imu;
+    private GoBildaPinpointDriver pinpoint;
 
     //---------------- Software ----------------
     double leftFrontPow = 0.0;
@@ -43,17 +43,8 @@ public class Drive implements Subsystem {
         backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-//        imu = map.get(IMU.class, "imu");
-
-        // This needs to be changed to match the orientation on your robot
-        RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
-                RevHubOrientationOnRobot.LogoFacingDirection.UP;
-        RevHubOrientationOnRobot.UsbFacingDirection usbDirection =
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
-
-        RevHubOrientationOnRobot orientationOnRobot = new
-                RevHubOrientationOnRobot(logoDirection, usbDirection);
-//        imu.initialize(new IMU.Parameters(orientationOnRobot));
+        // Field centric heading comes from the Pinpoint's IMU instead of the hub IMU
+        pinpoint = map.get(GoBildaPinpointDriver.class, "pinpoint");
     }
 
 
@@ -91,8 +82,9 @@ public class Drive implements Subsystem {
         double r = Math.hypot(right, forward);
 
         // Second, rotate angle by the angle the robot is pointing
+        pinpoint.update(GoBildaPinpointDriver.ReadData.ONLY_UPDATE_HEADING);
         theta = AngleUnit.normalizeRadians(theta -
-                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS));
+                pinpoint.getHeading(AngleUnit.RADIANS));
 
         // Third, convert back to cartesian
         double newForward = r * Math.sin(theta);

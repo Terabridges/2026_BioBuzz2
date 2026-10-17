@@ -11,12 +11,12 @@ import org.firstinspires.ftc.teamcode.util.Utility;
 public class Transfer implements Subsystem {
 
     //---------------- Hardware ----------------
-    private final DcMotorEx transfer;
-    private final Servo blocker;
+    private DcMotorEx transfer;
+    private Servo blocker;
     //TODO figure out which distance we are using and implement them
 
     //---------------- Software ----------------
-    private Utility util;
+    private final Utility util = new Utility();
 
     private double transferPow = 0.0;
     private double blockerPos = 0.0;
@@ -31,8 +31,6 @@ public class Transfer implements Subsystem {
     public Transfer(HardwareMap map) {
         transfer = map.get(DcMotorEx.class, "transfer");
         blocker = map.get(Servo.class, "blocker");
-        util = new Utility();
-
     }
 
     //---------------- Core Methods ----------------

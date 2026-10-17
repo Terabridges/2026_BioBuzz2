@@ -7,9 +7,9 @@ import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 public class Outtake implements Subsystem {
 
     //---------------- Subsystems ----------------
-    public final Shooter shooter;
-    public final Turret turret;
-    public final Lights lights;
+    public Shooter shooter;
+    public Turret turret;
+    public Lights lights;
 
 
     //---------------- Software ----------------

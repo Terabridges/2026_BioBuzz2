@@ -7,6 +7,7 @@ import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
+import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 
 public class ShooterControl implements Control {
 
@@ -15,6 +16,9 @@ public class ShooterControl implements Control {
     Gamepad gp1;
     Gamepad gp2;
     Robot robot;
+
+    private final double SHOOT_RPM = 2000;
+    private EdgeDetector toggleShooterEdgeDetect = new EdgeDetector(this::toggleShooter);
 
     //---------------- Constructor ----------------
     public ShooterControl(Outtake outtake, Gamepad gp1, Gamepad gp2){
@@ -31,15 +35,19 @@ public class ShooterControl implements Control {
     }
 
     //---------------- Methods ----------------
+    public void toggleShooter() {
+        shooter.setTargetRPM(Shooter.flywheelTargetRPM > 0 ? 0 : SHOOT_RPM);
+    }
 
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
-
+        toggleShooterEdgeDetect.update(gp1.y);
     }
 
     @Override
     public void addTelemetry(Telemetry telemetry){
-
+        telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Shooter Current RPM", shooter.getCurrentRPM());
     }
 }
