@@ -25,7 +25,30 @@ public class Intake implements Subsystem {
     }
 
     //---------------- Methods ----------------
+    public void intakeIn(){
+        spinner.setSpinnerSpinIn();
+        transfer.setTransferIn();
+    }
 
+    public void intakeOut(){
+        spinner.setSpinnerSpinOut();
+        transfer.setTransferOut();
+    }
+
+    public void intakeIn(double pow){
+        spinner.setSpinnerSpinIn(pow);
+        transfer.setTransferIn(pow);
+    }
+
+    public void intakeOut(double pow){
+        spinner.setSpinnerSpinOut(pow);
+        transfer.setTransferOut(pow);
+    }
+
+    public void intakeStop(){
+        spinner.setSpinnerSpinZero();
+        transfer.setTransferZero();
+    }
 
     //---------------- Interface Methods ----------------
     @Override

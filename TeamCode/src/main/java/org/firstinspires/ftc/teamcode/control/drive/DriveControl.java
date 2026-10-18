@@ -1,15 +1,16 @@
-package org.firstinspires.ftc.teamcode.control;
+package org.firstinspires.ftc.teamcode.control.drive;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.subsystems.other.Drive;
-import org.firstinspires.ftc.teamcode.util.EdgeDetector;
-import org.firstinspires.ftc.teamcode.util.Rates;
+import org.firstinspires.ftc.teamcode.control.Control;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive;
+import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
+import org.firstinspires.ftc.teamcode.utility.driveUtility.Rates;
 
 @Configurable
-public class DriveControl implements Control{
+public class DriveControl implements Control {
     private Drive drive;
     private Gamepad gp1;
     private Gamepad gp2;
@@ -48,7 +49,7 @@ public class DriveControl implements Control{
     @Override
     public void update() {
         toggleSlowEdgeDetect.update(gp1.b);
-        toggleFieldCentricEdgeDetect.update(gp1.x);
+        toggleFieldCentricEdgeDetect.update(gp1.back);
 
         double axial = -gp1.left_stick_y;  // Note: pushing stick forward gives negative value
         double lateral = gp1.left_stick_x;

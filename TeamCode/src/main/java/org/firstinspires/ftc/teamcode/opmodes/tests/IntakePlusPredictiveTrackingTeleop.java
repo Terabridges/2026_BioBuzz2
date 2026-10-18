@@ -13,13 +13,13 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.Drive2_0Control;
+import org.firstinspires.ftc.teamcode.control.drive.Drive2_0Control;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
-import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
-import org.firstinspires.ftc.teamcode.control.VisionControl;
+import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.util.PoseLogging;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive2_0;
+import org.firstinspires.ftc.teamcode.utility.driveUtility.PoseLogging;
 import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
@@ -33,6 +33,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     GoBildaPinpointDriver pinpoint;
     Follower follower;
     Robot robot;
+    Drive2_0 drive20;
     private JoinedTelemetry joinedTelemetry;
 
     Gamepad currentGamepad1;
@@ -43,7 +44,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     VisionControl visionControl;
     IntakeControl intakeControl;
     Drive2_0Control driveControl;
-    SpinnerControl spinnerControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
@@ -54,12 +54,14 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
 
         robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2);
-        visionControl = new VisionControl(robot, gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
-        driveControl = new Drive2_0Control(robot, gamepad1, gamepad2);
-        spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
+        visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
+        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
+        // Robot only runs Drive 1, so this test drives with its own Drive 2.0 and keeps Drive 1 off the motors
+        robot.drive.manualDrive = false;
+        drive20 = new Drive2_0(hardwareMap);
+        driveControl = new Drive2_0Control(drive20, gamepad1, gamepad2);
 
-        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
+        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
         follower = FollowerManager.getInstance(hardwareMap);
         follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
 
@@ -94,6 +96,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         gamepadUpdate();
         controlsUpdate();
         robot.update();
+        drive20.update();
 
         if ((gamepad1.y && !previousGamepad1.y) && (robot.vision.hasTarget())) {
             Pose targetPose = robot.vision.getPredictiveInterceptPose(follower.pose());
@@ -110,6 +113,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     @Override
     public void stop() {
         robot.stop();
+        drive20.stop();
     }
 
     public void driveToLocationAuto(Pose targetPose) {
@@ -120,7 +124,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     public void logPsiKitData() {
         Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(robot.vision.getPredictiveInterceptPose(follower.pose())));
-        PoseLogging.logMainPoseDetails(robot);
+        PoseLogging.logMainPoseDetails(robot, follower);
     }
 
     public void controlsUpdate() {
