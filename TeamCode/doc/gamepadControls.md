@@ -4,16 +4,16 @@
 * A: Toggle Ramp
 * X: Toggle Shoot
 * Y: Toggle Blocker
-* B:
+* B: Toggle Slow Mode
 * Down:Hood Down
-* Left:
+* Left: Decrease RPM
 * Up: Hood Up
-* Right:
+* Right: Increase RPM
 * LBump: Turret Left
 * RBump: Turret Right
 * LStickButton:
 * RStickButton:
-* Back:
+* Back: Toggle Field Centric
 * Start:
 
 # 0 - 1 Values
