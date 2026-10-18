@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.subsystems.vision;
 
 import com.pedropathing.math.Pose;
+import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -23,10 +24,14 @@ public class Vision implements Subsystem {
 
     //-------------Hardware------------
     private Limelight3A limelight;
+    private HuskyLens huskyLens;
 
     //-------------Software-------------
     public LLResult latest;
     private int pipeline = 0;
+
+    private boolean huskyLensReady;
+    private HuskyLens.Block[] huskyLensTags = new HuskyLens.Block[0];
 
     private double lastFieldX = 0;
     private double lastFieldY = 0;
@@ -64,6 +69,7 @@ public class Vision implements Subsystem {
     //--------Constructor--------
     private Vision(HardwareMap map) {
         limelight = map.get(Limelight3A.class, "limelight");
+        huskyLens = map.tryGet(HuskyLens.class, "huskylens");
     }
     private static Vision instance = null;
     public static Vision getInstance(HardwareMap map) {
@@ -82,6 +88,55 @@ public class Vision implements Subsystem {
 
     private void limelightUpdate() {
         latest = limelight.getLatestResult();
+    }
+
+    //---------HuskyLens AprilTags-----------
+    private void huskyLensInit() {
+        huskyLensTags = new HuskyLens.Block[0];
+        huskyLensReady = huskyLens != null && huskyLens.knock();
+        if (huskyLensReady) {
+            huskyLens.selectAlgorithm(HuskyLens.Algorithm.TAG_RECOGNITION);
+        }
+    }
+
+    private void huskyLensUpdate() {
+        if (!huskyLensReady) return;
+        List<HuskyLens.Block> detected = new ArrayList<>();
+        for (HuskyLens.Block tag : huskyLens.blocks()) {
+            // The SDK can leave null entries for incomplete tag responses.
+            if (tag != null) detected.add(tag);
+        }
+        huskyLensTags = detected.toArray(new HuskyLens.Block[0]);
+    }
+
+    public boolean isHuskyLensReady() {
+        return huskyLensReady;
+    }
+
+    public boolean hasHuskyLensTag() {
+        return huskyLensTags.length > 0;
+    }
+
+    /** Uses the HuskyLens learned ID, not the official printed AprilTag number. */
+    public boolean hasHuskyLensTag(int learnedId) {
+        return getHuskyLensTag(learnedId) != null;
+    }
+
+    /** Latest raw detections: id, center x/y, width/height, and left/top in pixels. */
+    public HuskyLens.Block[] getHuskyLensTags() {
+        return huskyLensTags.clone();
+    }
+
+    /** Returns the first detection with this learned ID, or null if not detected. */
+    public HuskyLens.Block getHuskyLensTag(int learnedId) {
+        for (HuskyLens.Block tag : huskyLensTags) {
+            if (tag.id == learnedId) return tag;
+        }
+        return null;
+    }
+
+    private void logFeedToLogger() {
+        //This will be used for PsiKit later
     }
 
     public boolean hasTarget() {
@@ -391,6 +446,7 @@ public class Vision implements Subsystem {
     //---------Interface Methods---------
     @Override
     public void init() {
+        huskyLensInit();
         limelightInit();
         startSnapshotServer();
     }
@@ -406,10 +462,13 @@ public class Vision implements Subsystem {
     @Override
     public void update() {
         limelightUpdate();
+        huskyLensUpdate();
     }
 
     @Override
     public void stop() {
+        huskyLensTags = new HuskyLens.Block[0];
+        huskyLensReady = false;
         stopLimelightAndServers();
     }
 

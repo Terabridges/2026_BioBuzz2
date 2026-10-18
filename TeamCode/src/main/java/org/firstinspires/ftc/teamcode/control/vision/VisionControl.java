@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.control.vision;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.hardware.dfrobot.HuskyLens;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.control.Control;
@@ -37,5 +38,14 @@ public class VisionControl implements Control {
         t.addData("Object(s) Tx:", vision.getTx());
         t.addData("Objects(s) Ty: ", vision.getTy());
         t.addData("Object(s) Area:", vision.getArea());
+        t.addData("HuskyLens Ready", vision.isHuskyLensReady());
+        t.addData("HuskyLens Tag Detected", vision.hasHuskyLensTag());
+        HuskyLens.Block[] tags = vision.getHuskyLensTags();
+        t.addData("HuskyLens Tag Count", tags.length);
+        for (int i = 0; i < tags.length; i++) {
+            HuskyLens.Block tag = tags[i];
+            t.addData("HuskyLens Tag " + i, "ID=%d x=%d y=%d width=%d height=%d",
+                    tag.id, tag.x, tag.y, tag.width, tag.height);
+        }
     }
 }
