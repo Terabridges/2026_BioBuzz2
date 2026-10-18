@@ -8,6 +8,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
+import org.firstinspires.ftc.teamcode.utility.visionUtility.Cluster;
+import org.firstinspires.ftc.teamcode.utility.visionUtility.DetectedBall;
 import org.psilynx.psikit.core.Logger;
 
 import java.io.OutputStream;

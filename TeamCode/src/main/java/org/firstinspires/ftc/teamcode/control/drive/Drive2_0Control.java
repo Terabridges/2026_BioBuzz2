@@ -1,17 +1,16 @@
-package org.firstinspires.ftc.teamcode.control;
+package org.firstinspires.ftc.teamcode.control.drive;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.subsystems.other.Drive2_0;
-import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.util.EdgeDetector;
+import org.firstinspires.ftc.teamcode.control.Control;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive2_0;
+import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 
-public class Drive2_0Control implements Control{
+public class Drive2_0Control implements Control {
     Drive2_0 drive20;
     Gamepad gp1;
     Gamepad gp2;
-    Robot robot;
     EdgeDetector centricity = new EdgeDetector(() -> drive20.toggleCentricity());
     EdgeDetector driveHold = new EdgeDetector(() -> drive20.toggleIsDriveOrHold());
 
@@ -19,11 +18,6 @@ public class Drive2_0Control implements Control{
         this.drive20 = drive20;
         this.gp1 = gp1;
         this.gp2 = gp2;
-    }
-
-    public Drive2_0Control(Robot robot, Gamepad gp1, Gamepad gp2) {
-        this(robot.drive20, gp1, gp2);
-        this.robot = robot;
     }
 
     @Override
