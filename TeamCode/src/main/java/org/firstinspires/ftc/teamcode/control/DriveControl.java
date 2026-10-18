@@ -4,20 +4,27 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.subsystems.other.Drive;
+import org.firstinspires.ftc.teamcode.subsystems.other.Drive2_0;
+import org.firstinspires.ftc.teamcode.subsystems.other.TotalDrive;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
 import org.firstinspires.ftc.teamcode.util.Rates;
 
 @Configurable
-public class DriveControl implements Control{
-    private Drive drive;
-    private Gamepad gp1;
-    private Gamepad gp2;
-    private EdgeDetector toggleSlowEdgeDetect;
-    private EdgeDetector toggleFieldCentricEdgeDetect;
+public class DriveControl implements Control {
+    private final TotalDrive drive;
+    private final Gamepad gp1;
+    private final Gamepad gp2;
+
+    // Edge Detectors
+    private final EdgeDetector toggleSlowEdgeDetect;
+    private final EdgeDetector toggleFieldCentricEdgeDetect;
+    private final EdgeDetector toggleDriveModeEdgeDetect;
+    private final EdgeDetector toggleDriveHoldEdgeDetect;
+
+    // State Variables
     private boolean slowMode = false;
 
-    //--------Rate Settings---------
+    // --------Rate Settings---------
     public static double maxRate = 1.0;
     public static double moveCenterRate = 0.7;
     public static double moveExpo = 0.4;
@@ -26,59 +33,99 @@ public class DriveControl implements Control{
     public static double turnCenterRate = 0.375;
     public static double turnExpo = 0.4;
 
-    //--------Constructor---------
-
-    public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2) {
+    // --------Constructors---------
+    public DriveControl(TotalDrive drive, Gamepad gp1, Gamepad gp2) {
         this.drive = drive;
         this.gp1 = gp1;
         this.gp2 = gp2;
 
-        // TODO: Since slowMode and fieldCentric are things that this class cares about, we should bring both into this class
-        // Anay, can you move the drive::toggleFieldCentric to this class?
         toggleSlowEdgeDetect = new EdgeDetector(this::toggleSlowMode);
         toggleFieldCentricEdgeDetect = new EdgeDetector(drive::toggleFieldCentric);
+        toggleDriveModeEdgeDetect = new EdgeDetector(this::toggleDriveMode);
+        toggleDriveHoldEdgeDetect = new EdgeDetector(() -> drive.getPedroDrive().toggleIsDriveOrHold());
     }
 
-    //---------Methods--------------
+    // ---------Toggles--------------
     public void toggleSlowMode() {
         slowMode = !slowMode;
     }
 
-    //-------Interface Methods------
+    public void toggleDriveMode() {
+        if (drive.getMode() == TotalDrive.DriveMode.RAW_TELEOP) {
+            drive.setMode(TotalDrive.DriveMode.PEDRO_PATHING);
+        } else {
+            drive.setMode(TotalDrive.DriveMode.RAW_TELEOP);
+        }
+    }
+
+    // -------Interface Methods------
     @Override
     public void update() {
+        // Update Edge Detectors
         toggleSlowEdgeDetect.update(gp1.b);
         toggleFieldCentricEdgeDetect.update(gp1.x);
+        toggleDriveModeEdgeDetect.update(gp1.y);
+        toggleDriveHoldEdgeDetect.update(gp1.dpad_down);
 
-        double axial = -gp1.left_stick_y;  // Note: pushing stick forward gives negative value
-        double lateral = gp1.left_stick_x;
-        double yaw = gp1.right_stick_x;
+        // Raw Stick Inputs
+        double rawAxial = -gp1.left_stick_y;
+        double rawLateral = gp1.left_stick_x;
+        double rawYaw = gp1.right_stick_x;
 
+        // Apply Rates & Exponential Curves
         Rates moveRate = new Rates(moveCenterRate, maxRate, moveExpo, deadzone);
         Rates turnRate = new Rates(turnCenterRate, maxRate, turnExpo, deadzone);
 
-        // Convert axial, lateral, and yaw from stickInputs to powerRequests using the rates we just built
-        axial = moveRate.apply(axial);
-        lateral = moveRate.apply(lateral);
-        yaw = turnRate.apply(yaw);
+        double axial = moveRate.apply(rawAxial);
+        double lateral = moveRate.apply(rawLateral);
+        double yaw = turnRate.apply(rawYaw);
 
+        // Apply Slow Mode Multiplier
         if (slowMode) {
             axial *= 0.5;
             lateral *= 0.5;
             yaw *= 0.5;
         }
 
-        if (drive.useFieldCentric) {
-            drive.driveFieldRelative(axial, lateral, yaw);
-        } else if(drive.manualDrive) {
-            // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
-            drive.drive(axial, lateral, yaw);
+        // Route Control to the Active Drive Engine
+        if (drive.getMode() == TotalDrive.DriveMode.RAW_TELEOP) {
+            if (drive.isFieldCentric()) {
+                drive.getRawDrive().driveFieldRelative(axial, lateral, yaw);
+            } else {
+                drive.getRawDrive().drive(axial, lateral, yaw);
+            }
+        } else if (drive.getMode() == TotalDrive.DriveMode.PEDRO_PATHING) {
+            Drive2_0 pedro = drive.getPedroDrive();
+
+            // Override active pathing if driver moves sticks beyond deadzone or if follower finished path
+            boolean driverIsMovingSticks = Math.abs(rawAxial) > 0.1 ||
+                    Math.abs(rawLateral) > 0.1 ||
+                    Math.abs(rawYaw) > 0.1;
+
+            if (driverIsMovingSticks || !pedro.isBusy()) {
+                if (!drive.isFieldCentric()) {
+                    if (pedro.isDriveOrHold) {
+                        pedro.driveOrHoldRobotCentric(axial, lateral, yaw);
+                    } else {
+                        pedro.robotCentric(axial, lateral, yaw);
+                    }
+                } else {
+                    if (pedro.isDriveOrHold) {
+                        pedro.driveOrHoldFieldCentric(axial, lateral, yaw);
+                    } else {
+                        pedro.fieldCentric(axial, lateral, yaw);
+                    }
+                }
+            }
         }
     }
 
     @Override
     public void addTelemetry(Telemetry t) {
+        t.addData("Drive Mode", drive.getMode());
         t.addData("Slow Mode", slowMode);
-        t.addData("Field Centric", drive.useFieldCentric);
+        t.addData("Field Centric", drive.isFieldCentric());
+        t.addData("Pedro DriveOrHold", drive.getPedroDrive().isDriveOrHold);
+        t.addData("Pedro Pose", drive.getPedroDrive().robotPose());
     }
 }

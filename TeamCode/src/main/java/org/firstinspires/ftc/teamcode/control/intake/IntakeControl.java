@@ -20,10 +20,8 @@ public class IntakeControl implements Control {
     }
 
     public IntakeControl(Robot robot, Gamepad gp1, Gamepad gp2) {
+        this(robot.intake, gp1, gp2);
         this.robot = robot;
-        this.intake = robot.intake;
-        this.gp1 = gp1;
-        this.gp2 = gp2;
     }
 
     @Override

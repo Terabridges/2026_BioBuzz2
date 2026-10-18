@@ -13,7 +13,7 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.Drive2_0Control;
+import org.firstinspires.ftc.teamcode.control.DriveControl;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
 import org.firstinspires.ftc.teamcode.control.VisionControl;
@@ -42,7 +42,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     Gamepad previousGamepad2;
     VisionControl visionControl;
     IntakeControl intakeControl;
-    Drive2_0Control driveControl;
+    DriveControl driveControl;
     SpinnerControl spinnerControl;
     List<Control> controls;
 
@@ -53,10 +53,10 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
 
 
-        robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2);
+        robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
-        driveControl = new Drive2_0Control(robot, gamepad1, gamepad2);
+        driveControl = new DriveControl(robot.drive, gamepad1, gamepad2);
         spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
@@ -95,13 +95,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         controlsUpdate();
         robot.update();
 
-        if ((gamepad1.y && !previousGamepad1.y) && (robot.vision.hasTarget())) {
-            Pose targetPose = robot.vision.getPredictiveInterceptPose(follower.pose());
-            if (targetPose != null) {
-                driveToLocationAuto(targetPose);
-            }
-        }
-
         controlsTelemetryUpdate();
         logPsiKitData();
         robot.logPsiKitData();
@@ -119,7 +112,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     }
 
     public void logPsiKitData() {
-        Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(robot.vision.getPredictiveInterceptPose(follower.pose())));
         PoseLogging.logMainPoseDetails(robot);
     }
 
@@ -134,7 +126,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             for (Control c : controls) {
                 c.addTelemetry(joinedTelemetry);
             }
-            joinedTelemetry.addData("TargetPose:", robot.vision.getPredictiveInterceptPose(follower.pose()));
             joinedTelemetry.update();
             telemetryTimer.reset();
         }
