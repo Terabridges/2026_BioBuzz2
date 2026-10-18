@@ -9,16 +9,10 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.DriveControl;
+import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
-import org.firstinspires.ftc.teamcode.control.intake.RampControl;
-import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
-import org.firstinspires.ftc.teamcode.control.intake.TransferControl;
-import org.firstinspires.ftc.teamcode.control.outtake.LightsControl;
 import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
-import org.firstinspires.ftc.teamcode.control.outtake.ShooterControl;
-import org.firstinspires.ftc.teamcode.control.outtake.TurretControl;
-import org.firstinspires.ftc.teamcode.control.VisionControl;
+import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 
@@ -45,13 +39,7 @@ public class MainTeleOp extends OpMode {
     //---------------- Controls ----------------
     private VisionControl visionControl;
     private IntakeControl intakeControl;
-    private RampControl rampControl;
-    private SpinnerControl spinnerControl;
-    private TransferControl transferControl;
     private OuttakeControl outtakeControl;
-    private ShooterControl shooterControl;
-    private TurretControl turretControl;
-    private LightsControl lightsControl;
     private DriveControl driveControl;
     private List<Control> controls;
 
@@ -63,21 +51,15 @@ public class MainTeleOp extends OpMode {
 
         followerManager = FollowerManager.forTeleOp(hardwareMap);
         robot = new Robot(hardwareMap, telemetry, followerManager.follower());
-        visionControl = new VisionControl(robot, gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
-        rampControl = new RampControl(robot, gamepad1, gamepad2);
-        spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
-        transferControl = new TransferControl(robot, gamepad1, gamepad2);
-        outtakeControl = new OuttakeControl(robot, gamepad1, gamepad2);
-        shooterControl = new ShooterControl(robot, gamepad1, gamepad2);
-        turretControl = new TurretControl(robot, gamepad1, gamepad2);
-        lightsControl = new LightsControl(robot, gamepad1, gamepad2);
+        visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
+        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
+        outtakeControl = new OuttakeControl(robot.outtake, gamepad1, gamepad2);
         driveControl = new DriveControl(robot.drive20, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(
                 visionControl,
-                intakeControl, rampControl, spinnerControl, transferControl,
-                outtakeControl, shooterControl, turretControl, lightsControl,
+                intakeControl,
+                outtakeControl,
                 driveControl));
 
         currentGamepad1 = new Gamepad();

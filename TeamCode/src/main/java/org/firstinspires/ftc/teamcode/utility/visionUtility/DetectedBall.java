@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.subsystems.vision;
+package org.firstinspires.ftc.teamcode.utility.visionUtility;
 
 public class DetectedBall {
     public enum BallType { POLLEN, RED, BLUE}

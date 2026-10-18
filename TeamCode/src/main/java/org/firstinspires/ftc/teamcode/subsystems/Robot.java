@@ -7,8 +7,8 @@ import com.pedropathing.follower.Follower;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
-import org.firstinspires.ftc.teamcode.subsystems.other.Drive;
-import org.firstinspires.ftc.teamcode.subsystems.other.Drive2_0;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive2_0;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
