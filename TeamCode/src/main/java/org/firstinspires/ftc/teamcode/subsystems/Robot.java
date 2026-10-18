@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.subsystems;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.pedropathing.follower.Follower;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
@@ -20,7 +21,6 @@ public class Robot {
 
     //---------------- Objects ----------------
     private final HardwareMap hardwareMap;
-    FollowerManager followerManager;
     private final Telemetry telemetry;
     private Gamepad gp1;
     private Gamepad gp2;
@@ -36,24 +36,30 @@ public class Robot {
 
     //---------------- Constructors ----------------
     public Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gp1, Gamepad gp2) {
-        this(hardwareMap, telemetry, gp1, gp2, true);
+        this(hardwareMap, telemetry, gp1, gp2, null);
     }
 
     private Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gp1, Gamepad gp2,
-                  boolean initializePedroDrive) {
+                  Follower follower) {
         this.hardwareMap = hardwareMap;
         this.telemetry = telemetry;
 
         intake = new Intake(hardwareMap);
         outtake = new Outtake(hardwareMap);
         vision = Vision.getInstance(hardwareMap);
-        drive = new Drive(hardwareMap);
-        drive20 = initializePedroDrive ? new Drive2_0(hardwareMap) : null;
+        if (follower == null) {
+            // Legacy diagnostics use direct motor control, never a second Pedro follower.
+            FollowerManager.clearHandoff();
+            drive = new Drive(hardwareMap);
+        } else {
+            drive20 = new Drive2_0(follower);
+        }
 
 
 
         subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision));
-        subsystems.add(initializePedroDrive ? drive20 : drive);
+        if (drive != null) subsystems.add(drive);
+        // Drive2_0 only sends commands; FollowerManager owns its update/stop lifecycle.
 
         this.gp1 = gp1;
         this.gp2 = gp2;
@@ -65,9 +71,9 @@ public class Robot {
         this(hardwareMap, telemetry, null, null);
     }
 
-    /** Autonomous supplies its own follower and must not initialize/update the TeleOp follower. */
-    public Robot(HardwareMap hardwareMap, Telemetry telemetry, boolean initializePedroDrive) {
-        this(hardwareMap, telemetry, null, null, initializePedroDrive);
+    /** Auto and Pedro-based TeleOp receive the same follower owned by their OpMode manager. */
+    public Robot(HardwareMap hardwareMap, Telemetry telemetry, Follower follower) {
+        this(hardwareMap, telemetry, null, null, java.util.Objects.requireNonNull(follower));
     }
 
     //---------------- Interface Methods ----------------

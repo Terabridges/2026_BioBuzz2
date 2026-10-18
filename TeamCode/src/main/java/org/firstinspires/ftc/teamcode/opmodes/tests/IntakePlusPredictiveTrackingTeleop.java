@@ -32,6 +32,7 @@ import java.util.List;
 public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     GoBildaPinpointDriver pinpoint;
     Follower follower;
+    FollowerManager followerManager;
     Robot robot;
     private JoinedTelemetry joinedTelemetry;
 
@@ -53,15 +54,18 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
 
 
-        robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2);
+        followerManager = FollowerManager.forTeleOp(hardwareMap);
+        follower = followerManager.follower();
+        robot = new Robot(hardwareMap, telemetry, follower);
         visionControl = new VisionControl(robot, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
         driveControl = new Drive2_0Control(robot, gamepad1, gamepad2);
         spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
-        follower = FollowerManager.getInstance(hardwareMap);
-        follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
+        if (!followerManager.resumedFromAuto()) {
+            follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
+        }
 
         currentGamepad1 = new Gamepad();
         previousGamepad1 = new Gamepad();
@@ -80,12 +84,15 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     public void init_loop() {
         previousGamepad1.copy(currentGamepad1);
         currentGamepad1.copy(gamepad1);
+        followerManager.update();
+        telemetry.addData("Localization", followerManager.resumedFromAuto() ? "From autonomous" : "Fresh follower");
         telemetry.update();
     }
 
     @Override
     public void start() {
         robot.toInit();
+        followerManager.startManual();
         telemetryTimer.reset();
     }
 
@@ -102,6 +109,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             }
         }
 
+        followerManager.update();
         controlsTelemetryUpdate();
         logPsiKitData();
         robot.logPsiKitData();
@@ -109,7 +117,11 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     @Override
     public void stop() {
-        robot.stop();
+        try {
+            if (robot != null) robot.stop();
+        } finally {
+            if (followerManager != null) followerManager.stop();
+        }
     }
 
     public void driveToLocationAuto(Pose targetPose) {

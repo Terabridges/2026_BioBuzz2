@@ -9,21 +9,27 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.AutoConfig;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoContext;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
+import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 
 /**
  * Common FTC lifecycle: initialize hardware/follower, accept pre-start selection,
  * start a fresh routine, update it each loop, and stop on completion or Driver Station Stop.
- * Owns follower/Robot updates and status telemetry, not strategy-specific states or paths.
- * Manual Drive updates are disabled when Robot is present so Pedro owns drive commands.
+ * Owns manager/Robot updates and status telemetry, not strategy-specific states or paths.
+ * Robot receives the same follower; only FollowerManager updates it.
+ * A started competition auto offers its stopped follower to the next TeleOp.
+ * Init-only runs, failed runs, and path tests never publish a handoff.
  * PATH_TEST initializes only the follower, excluding unrelated mechanism hardware.
  */
 public abstract class BaseAutoOpMode extends OpMode {
     private Follower follower;
+    private FollowerManager followerManager;
     private Robot robot;
     private AutoConfig config;
     private AutoRoutine routine;
     private boolean stopped;
+    private boolean started;
+    private boolean failed;
     private final ElapsedTime autoTimer = new ElapsedTime();
 
     protected abstract AutoConfig selectedConfig();
@@ -33,7 +39,7 @@ public abstract class BaseAutoOpMode extends OpMode {
 
     /** Path-only diagnostics override this to avoid initializing unrelated hardware. */
     protected boolean usesRobot() { return executionMode() != AutoContext.Mode.PATH_TEST; }
-    protected Robot createRobot() { return new Robot(hardwareMap, telemetry, false); }
+    protected Robot createRobot() { return new Robot(hardwareMap, telemetry, follower); }
     protected Follower createFollower() { return Constants.create(hardwareMap); }
     protected void resetSelection() {}
     protected void updateSelection() {}
@@ -42,18 +48,20 @@ public abstract class BaseAutoOpMode extends OpMode {
     @Override public final void init() {
         if (follower != null) stop();
         stopped = false;
+        started = false;
+        failed = false;
         robot = null;
         follower = null;
+        followerManager = null;
         routine = null;
+        FollowerManager.clearHandoff();
         resetSelection();
+        follower = createFollower();
+        followerManager = new FollowerManager(hardwareMap, follower);
         if (executionMode() != AutoContext.Mode.PATH_TEST && usesRobot()) {
             robot = createRobot();
-            robot.drive.manualDrive = false;
             robot.toInit();
         }
-        // Initialize Pedro after Drive so its motor configuration takes precedence.
-        follower = createFollower();
-        follower.stop();
         config = selectedConfig();
         follower.setPose(config.startPose);
         showTelemetry();
@@ -66,7 +74,7 @@ public abstract class BaseAutoOpMode extends OpMode {
             config = selected;
             follower.setPose(config.startPose);
         }
-        follower.update();
+        followerManager.update();
         showTelemetry();
     }
 
@@ -77,6 +85,7 @@ public abstract class BaseAutoOpMode extends OpMode {
             routine = createRoutine(new AutoContext(config, follower, robot, executionMode()));
             autoTimer.reset();
             routine.start();
+            started = true;
         } catch (RuntimeException failure) {
             stopAfterFailure(failure);
             throw failure;
@@ -86,7 +95,7 @@ public abstract class BaseAutoOpMode extends OpMode {
     @Override public final void loop() {
         if (stopped) return;
         try {
-            follower.update();
+            followerManager.update();
             if (routine != null && !routine.isFinished()) routine.update();
             if (routine != null && routine.isFinished()) {
                 stop();
@@ -101,6 +110,8 @@ public abstract class BaseAutoOpMode extends OpMode {
     }
 
     private void stopAfterFailure(RuntimeException failure) {
+        failed = true;
+        FollowerManager.clearHandoff();
         try {
             stop();
         } catch (RuntimeException cleanupFailure) {
@@ -116,10 +127,13 @@ public abstract class BaseAutoOpMode extends OpMode {
             if (routine != null) routine.stop();
         } finally {
             try {
-                if (follower != null) follower.stop();
-            } finally {
                 if (robot != null) robot.stop();
+            } finally {
+                if (followerManager != null) followerManager.stop();
             }
+        }
+        if (started && !failed && executionMode() == AutoContext.Mode.COMPETITION) {
+            followerManager.handoffToTeleOp();
         }
     }
 

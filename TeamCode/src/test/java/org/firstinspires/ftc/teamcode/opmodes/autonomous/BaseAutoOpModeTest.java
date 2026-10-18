@@ -12,10 +12,13 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.StartSide;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoContext;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
+import org.junit.After;
 import org.junit.Test;
 
 /** Computer tests for lifecycle ownership and cleanup, without initializing robot hardware. */
 public class BaseAutoOpModeTest {
+    @After public void clearHandoff() { FollowerManager.clearHandoff(); }
     private static final class TestFollower extends Follower {
         int updates;
         int stops;
@@ -60,6 +63,8 @@ public class BaseAutoOpModeTest {
         TestFollower follower;
         TestRoutine nextRoutine = new TestRoutine();
         AutoContext createdContext;
+        AutoContext.Mode mode = AutoContext.Mode.PATH_TEST;
+        boolean requestRobot = true;
 
         TestAuto() {
             telemetry = (Telemetry) Proxy.newProxyInstance(Telemetry.class.getClassLoader(),
@@ -68,9 +73,9 @@ public class BaseAutoOpModeTest {
                         return null;
                     });
         }
-        @Override protected AutoContext.Mode executionMode() { return AutoContext.Mode.PATH_TEST; }
+        @Override protected AutoContext.Mode executionMode() { return mode; }
         // Even if a subclass requests Robot, PATH_TEST must never construct it.
-        @Override protected boolean usesRobot() { return true; }
+        @Override protected boolean usesRobot() { return requestRobot; }
         @Override protected Robot createRobot() {
             throw new AssertionError("Path tests must not construct Robot");
         }
@@ -168,5 +173,32 @@ public class BaseAutoOpModeTest {
         auto.start();
         auto.loop();
         assertEquals(1, auto.nextRoutine.updates);
+    }
+
+    @Test public void completedCompetitionAutoHandsItsActualFollowerToTeleop() {
+        TestAuto auto = new TestAuto();
+        auto.mode = AutoContext.Mode.COMPETITION;
+        auto.requestRobot = false;
+        auto.nextRoutine.finishOnUpdate = true;
+        auto.init();
+        auto.start();
+        auto.loop();
+        FollowerManager teleop = FollowerManager.forTeleOp(null);
+        assertTrue(teleop.resumedFromAuto());
+        assertSame(auto.follower, teleop.follower());
+        int updates = auto.follower.updates;
+        auto.loop();
+        assertEquals(updates, auto.follower.updates);
+    }
+
+    @Test public void driverStationStopAfterStartAlsoOffersTheFollower() {
+        TestAuto auto = new TestAuto();
+        auto.mode = AutoContext.Mode.COMPETITION;
+        auto.requestRobot = false;
+        auto.init();
+        auto.start();
+        auto.stop();
+        assertEquals(AutoRoutine.Result.CANCELLED, auto.nextRoutine.result());
+        assertSame(auto.follower, FollowerManager.forTeleOp(null).follower());
     }
 }
