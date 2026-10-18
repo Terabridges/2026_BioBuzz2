@@ -1,12 +1,11 @@
 package org.firstinspires.ftc.teamcode.subsystems.intake;
 
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
-import org.firstinspires.ftc.teamcode.util.Utility;
+import org.firstinspires.ftc.teamcode.utility.Utility;
 
 public class Transfer implements Subsystem {
 
