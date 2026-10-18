@@ -7,6 +7,8 @@ import com.pedropathing.math.Pose;
 import java.lang.reflect.Proxy;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoConfig;
+import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
+import org.firstinspires.ftc.teamcode.autonomous.framework.StartSide;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoContext;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
@@ -54,7 +56,7 @@ public class BaseAutoOpModeTest {
     }
 
     private static final class TestAuto extends BaseAutoOpMode {
-        final AutoConfig config = new AutoConfig("Test", Pose.zero());
+        final AutoConfig config = new AutoConfig("Test", Alliance.BLUE, StartSide.GARDEN, Pose.zero());
         TestFollower follower;
         TestRoutine nextRoutine = new TestRoutine();
         AutoContext createdContext;

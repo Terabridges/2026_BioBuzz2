@@ -3,7 +3,8 @@
  *
  * Classes in framework provide the common autonomous infrastructure.
  * AutoCatalog lists the strategies available in both Driver Station menus.
- * AutoConfig holds the selected name and starting pose; AutoContext supplies
+ * AutoMenu groups choices by alliance, Garden/Loading side, and routine.
+ * AutoConfig holds those selected settings and starting pose; AutoContext supplies
  * the follower and mechanism-action factory for the active run.
  *
  * FieldPoses defines locations. Classes in paths connect those locations with

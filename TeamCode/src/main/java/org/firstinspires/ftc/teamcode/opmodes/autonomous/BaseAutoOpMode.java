@@ -124,7 +124,7 @@ public abstract class BaseAutoOpMode extends OpMode {
     }
 
     private void showTelemetry() {
-        telemetry.addData("Auto", config.name);
+        telemetry.addData("Auto", config.selectionLabel());
         telemetry.addData("Mode", executionMode());
         telemetry.addData("State", routine == null ? "Ready" : routine.state());
         telemetry.addData("Result", routine == null ? AutoRoutine.Result.READY : routine.result());

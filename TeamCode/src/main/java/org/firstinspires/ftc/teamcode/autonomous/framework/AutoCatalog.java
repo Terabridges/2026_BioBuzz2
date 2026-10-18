@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.autonomous.framework;
 
 import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -9,10 +10,11 @@ import org.firstinspires.ftc.teamcode.autonomous.routines.DoNothingRoutine;
 
 /**
  * Register each strategy once; Auto Select and Auto Path Test use this same list.
- * An entry pairs its name/start pose with a factory that creates a fresh routine.
+ * Entries are grouped by alliance and starting side using their AutoConfig fields.
+ * An entry pairs its configuration with a factory that creates a fresh routine.
  * Set requiresRobot to true when the routine uses mechanism actions.
  * The competition menu initializes Robot if any entry needs it; path-test mode never does.
- * Only Do Nothing is registered until real routes are implemented.
+ * Only Do Nothing is registered for each alliance/side until real routes are implemented.
  */
 public final class AutoCatalog {
     public static final class Entry {
@@ -31,9 +33,17 @@ public final class AutoCatalog {
         }
     }
 
-    public static final List<Entry> ENTRIES = Collections.singletonList(
-            new Entry(new AutoConfig("Do Nothing", FieldPoses.TEST_START), false,
-                    context -> new DoNothingRoutine())
-    );
+    public static final List<Entry> ENTRIES = Collections.unmodifiableList(Arrays.asList(
+            doNothing(Alliance.BLUE, StartSide.GARDEN),
+            doNothing(Alliance.BLUE, StartSide.LOADING),
+            doNothing(Alliance.RED, StartSide.GARDEN),
+            doNothing(Alliance.RED, StartSide.LOADING)
+    ));
+
+    private static Entry doNothing(Alliance alliance, StartSide side) {
+        // No driving takes place. This local origin is not a measured start for a real route.
+        return new Entry(new AutoConfig("Do Nothing", alliance, side, FieldPoses.TEST_START),
+                false, context -> new DoNothingRoutine());
+    }
     private AutoCatalog() {}
 }

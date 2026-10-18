@@ -4,7 +4,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
 /**
  * Driver Station entry point "Auto Select": choose a catalog routine with D-pad
- * up/down before Start, then run it with real mechanism actions in COMPETITION mode.
+ * up/down, A to enter/confirm, and B to go back before Start. Choices are organized
+ * by alliance, Garden/Loading side, and routine. Runs real actions in COMPETITION mode.
  * Menu/lifecycle logic is inherited; strategy logic belongs in autonomous/routines.
  */
 @Autonomous(name = "Auto Select", group = "Auto")

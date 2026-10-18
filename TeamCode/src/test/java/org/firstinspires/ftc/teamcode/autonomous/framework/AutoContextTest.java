@@ -13,7 +13,7 @@ import org.junit.Test;
  */
 public class AutoContextTest {
     private AutoContext context(AutoContext.Mode mode) {
-        return new AutoContext(new AutoConfig("Test", Pose.zero()),
+        return new AutoContext(new AutoConfig("Test", Alliance.BLUE, StartSide.GARDEN, Pose.zero()),
                 new Follower(null, null, null), null, mode);
     }
 
