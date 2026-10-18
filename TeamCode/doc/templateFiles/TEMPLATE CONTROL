@@ -1,0 +1,37 @@
+package org.firstinspires.ftc.teamcode.control.NAME;
+
+import com.qualcomm.robotcore.hardware.Gamepad;
+
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.control.Control;
+import org.firstinspires.ftc.teamcode.subsystems.NAME.NAME;
+
+// One control per top-level subsystem (Intake, Outtake, Drive, Vision).
+// Give each child mechanism its own private update method and call it from update().
+public class NAMEControl implements Control {
+
+    //---------------- Software ----------------
+    NAME name;
+    Gamepad gp1;
+    Gamepad gp2;
+
+    //---------------- Constructor ----------------
+    public NAMEControl(NAME name, Gamepad gp1, Gamepad gp2){
+        this.name = name;
+        this.gp1 = gp1;
+        this.gp2 = gp2;
+    }
+
+    //---------------- Methods ----------------
+
+    //---------------- Interface Methods ----------------
+    @Override
+    public void update() {
+
+    }
+
+    @Override
+    public void addTelemetry(Telemetry t) {
+
+    }
+}

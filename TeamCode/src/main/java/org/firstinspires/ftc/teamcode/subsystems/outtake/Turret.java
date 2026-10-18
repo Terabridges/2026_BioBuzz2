@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
-import org.firstinspires.ftc.teamcode.util.AbsoluteAnalogEncoder;
-import org.firstinspires.ftc.teamcode.util.Utility;
+import org.firstinspires.ftc.teamcode.utility.AbsoluteAnalogEncoder;
+import org.firstinspires.ftc.teamcode.utility.Utility;
 
 public class Turret implements Subsystem {
 

@@ -9,17 +9,12 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.DriveControl;
+import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
-import org.firstinspires.ftc.teamcode.control.VisionControl;
-import org.firstinspires.ftc.teamcode.control.intake.RampControl;
-import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
-import org.firstinspires.ftc.teamcode.control.intake.TransferControl;
-import org.firstinspires.ftc.teamcode.control.outtake.LightsControl;
+import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
-import org.firstinspires.ftc.teamcode.control.outtake.ShooterControl;
-import org.firstinspires.ftc.teamcode.control.outtake.TurretControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +26,7 @@ public class MainTestTeleOp extends OpMode {
     //---------------- Objects ----------------
     private GoBildaPinpointDriver pinpoint;
     private Robot robot;
+    private FollowerManager followerManager;
     private JoinedTelemetry joinedTelemetry;
 
     private Gamepad currentGamepad1;
@@ -43,13 +39,7 @@ public class MainTestTeleOp extends OpMode {
     //---------------- Controls ----------------
     private VisionControl visionControl;
     private IntakeControl intakeControl;
-    private RampControl rampControl;
-    private SpinnerControl spinnerControl;
-    private TransferControl transferControl;
     private OuttakeControl outtakeControl;
-    private ShooterControl shooterControl;
-    private TurretControl turretControl;
-    private LightsControl lightsControl;
     private DriveControl driveControl;
     private List<Control> controls;
 
@@ -59,22 +49,17 @@ public class MainTestTeleOp extends OpMode {
     public void init() {
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
 
-        robot = new Robot(hardwareMap, telemetry);
-        visionControl = new VisionControl(robot, gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
-        rampControl = new RampControl(robot, gamepad1, gamepad2);
-        spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
-        transferControl = new TransferControl(robot, gamepad1, gamepad2);
-        outtakeControl = new OuttakeControl(robot, gamepad1, gamepad2);
-        shooterControl = new ShooterControl(robot, gamepad1, gamepad2);
-        turretControl = new TurretControl(robot, gamepad1, gamepad2);
-        lightsControl = new LightsControl(robot, gamepad1, gamepad2);
-        driveControl = new DriveControl(robot.drive, gamepad1, gamepad2);
+        followerManager = FollowerManager.forTeleOp(hardwareMap);
+        robot = new Robot(hardwareMap, telemetry, followerManager.follower());
+        visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
+        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
+        outtakeControl = new OuttakeControl(robot.outtake, gamepad1, gamepad2);
+        driveControl = new DriveControl(robot.drive20, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(
                 visionControl,
-                intakeControl, rampControl, spinnerControl, transferControl,
-                outtakeControl, shooterControl, turretControl, lightsControl,
+                intakeControl,
+                outtakeControl,
                 driveControl));
 
         currentGamepad1 = new Gamepad();
@@ -95,6 +80,8 @@ public class MainTestTeleOp extends OpMode {
     public void init_loop() {
         previousGamepad1.copy(currentGamepad1);
         currentGamepad1.copy(gamepad1);
+        followerManager.update();
+        telemetry.addData("Localization", followerManager.resumedFromAuto() ? "From autonomous" : "Fresh follower");
         telemetry.update();
     }
 
@@ -102,6 +89,7 @@ public class MainTestTeleOp extends OpMode {
     @Override
     public void start() {
         robot.toInit();
+        followerManager.startManual();
         telemetryTimer.reset();
     }
 
@@ -111,13 +99,18 @@ public class MainTestTeleOp extends OpMode {
         gamepadUpdate();
         controlsUpdate();
         robot.update();
+        followerManager.update();
         controlsTelemetryUpdate();
     }
 
     //---------------- stop ----------------
     @Override
     public void stop() {
-        robot.stop();
+        try {
+            if (robot != null) robot.stop();
+        } finally {
+            if (followerManager != null) followerManager.stop();
+        }
     }
 
 
