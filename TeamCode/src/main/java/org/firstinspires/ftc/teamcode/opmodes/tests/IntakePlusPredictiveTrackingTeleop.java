@@ -13,14 +13,12 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.DriveControl;
+import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
-import org.firstinspires.ftc.teamcode.control.intake.SpinnerControl;
-import org.firstinspires.ftc.teamcode.control.VisionControl;
+import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.util.PoseLogging;
-import org.psilynx.psikit.core.Logger;
+import org.firstinspires.ftc.teamcode.utility.driveUtility.PoseLogging;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 import java.util.ArrayList;
@@ -43,7 +41,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     VisionControl visionControl;
     IntakeControl intakeControl;
     DriveControl driveControl;
-    SpinnerControl spinnerControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
@@ -54,13 +51,12 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
 
         robot = new Robot(hardwareMap, telemetry);
-        visionControl = new VisionControl(robot, gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot, gamepad1, gamepad2);
+        visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
+        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
         driveControl = new DriveControl(robot.drive, gamepad1, gamepad2);
-        spinnerControl = new SpinnerControl(robot, gamepad1, gamepad2);
 
-        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl, spinnerControl));
-        follower = FollowerManager.getInstance(hardwareMap);
+        controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
+        follower = FollowerManager.forTeleOp(hardwareMap).follower();
         follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
 
         currentGamepad1 = new Gamepad();
