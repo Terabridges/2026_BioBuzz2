@@ -16,7 +16,7 @@ public class Cluster {
 
         double distance = Math.hypot(ball.getRelativeX() - relativeCenterX,
                 ball.getRelativeY() - relativeCenterY);
-        return distance < 4; // Radius threshold in field units (e.g. inches or meters)
+        return distance < 0.5; // Radius threshold in field units (e.g. inches or meters)
     }
 
     public void add(DetectedBall ball) {
