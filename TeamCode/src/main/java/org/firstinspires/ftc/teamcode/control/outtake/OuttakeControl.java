@@ -62,5 +62,6 @@ public class OuttakeControl implements Control {
     public void addTelemetry(Telemetry telemetry) {
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
         telemetry.addData("Shooter Current RPM", shooter.getCurrentRPM());
+        telemetry.addData("Shooter Flywheel Power", 2000 * shooter.getCurrentPower());
     }
 }
