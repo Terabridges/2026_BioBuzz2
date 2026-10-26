@@ -46,4 +46,14 @@ public class Outtake implements Subsystem {
         lights.update();
     }
 
+    @Override
+    public void stop(){
+        try {
+            shooter.stop();
+        } finally {
+            turret.stop();
+        }
+        lights.stop();
+    }
+
 }

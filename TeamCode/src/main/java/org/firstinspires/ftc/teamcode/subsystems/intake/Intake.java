@@ -64,4 +64,14 @@ public class Intake implements Subsystem {
         spinner.update();
         transfer.update();
     }
+
+    @Override
+    public void stop(){
+        try {
+            spinner.stop();
+        } finally {
+            transfer.stop();
+        }
+        ramp.stop();
+    }
 }

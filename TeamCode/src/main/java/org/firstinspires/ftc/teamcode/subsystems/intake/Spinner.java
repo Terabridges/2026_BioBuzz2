@@ -56,7 +56,13 @@ public class Spinner implements Subsystem {
 
     //---------------- Interface Methods ----------------
     @Override
-    public void init(){}
+    public void init(){ stop(); }
+
+    @Override
+    public void stop(){
+        spinnerPow = 0;
+        setSpinner(0);
+    }
 
     @Override
     public void update(){

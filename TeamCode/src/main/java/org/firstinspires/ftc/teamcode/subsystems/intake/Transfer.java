@@ -100,7 +100,15 @@ public class Transfer implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
+        stop();
         closeBlocker();
+    }
+
+    @Override
+    public void stop(){
+        transferPow = 0;
+        blockerChanged = false;
+        setTransfer(0);
     }
 
     @Override
