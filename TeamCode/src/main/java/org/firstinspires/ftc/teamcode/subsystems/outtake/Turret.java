@@ -29,6 +29,8 @@ public class Turret implements Subsystem {
     private final double turretMaxPos = 1;
     private final double turretStartPos = 0.5;
     private final double turretDefaultVel = 0.5; // servo units per second, 0.5 = full travel in 2 sec
+    // TODO verify that positive velocity is counterclockwise, flip the sign if the turret goes the wrong way
+    private final double turretManualVel = 0.3; // positive = counterclockwise (left)
 
     private final ElapsedTime loopTimer = new ElapsedTime();
     private double turretCurrentPos = turretStartPos;
@@ -86,6 +88,22 @@ public class Turret implements Subsystem {
         }
     }
 
+    // Counterclockwise
+    public void turnTurretLeft(){
+        setTurretVel(turretManualVel);
+    }
+
+    // Clockwise
+    public void turnTurretRight(){
+        setTurretVel(-turretManualVel);
+    }
+
+    public void stopTurret(){
+        setTurretVel(0);
+    }
+
+    public double getTurretPos(){return turretCurrentPos;}
+
     public boolean isTurretAtTarget(){
         return turretCurrentPos == turretTargetPos;
     }
@@ -95,7 +113,7 @@ public class Turret implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        //setTurret(turretStartPos);
+        setTurret(turretStartPos);
         loopTimer.reset();
     }
 

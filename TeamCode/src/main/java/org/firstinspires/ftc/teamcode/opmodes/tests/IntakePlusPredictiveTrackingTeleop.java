@@ -99,7 +99,8 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         controlsUpdate();
         robot.update();
 
-        if ((gamepad1.y && !previousGamepad1.y) && (robot.vision.hasTarget())) {
+        // Gamepad 1 Y belongs to the blocker; this test's intercept command uses gamepad 2.
+        if ((gamepad2.y && !previousGamepad2.y) && (robot.vision.hasTarget())) {
             Pose targetPose = robot.vision.getPredictiveInterceptPose(follower.pose());
             if (targetPose != null) {
                 driveToLocationAuto(targetPose);
@@ -129,7 +130,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     public void logPsiKitData() {
         Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(robot.vision.getPredictiveInterceptPose(follower.pose())));
-        PoseLogging.logMainPoseDetails(robot);
+        PoseLogging.logMainPoseDetails(robot, follower);
     }
 
     public void controlsUpdate() {

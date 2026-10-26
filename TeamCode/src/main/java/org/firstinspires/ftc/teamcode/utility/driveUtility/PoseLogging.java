@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.utility.driveUtility;
 
+import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
@@ -11,12 +12,12 @@ public final class PoseLogging {
     private static final double INCHES_TO_METERS = 0.0254;
     private static final double FIELD_SIZE_IN = 144.0;
     private static final double FIELD_HALF_IN = FIELD_SIZE_IN * 0.5;
-    public static void logMainPoseDetails(Robot robot) {
+    public static void logMainPoseDetails(Robot robot, Follower follower) {
         if (robot == null || robot.outtake == null || robot.outtake.turret == null || robot.vision == null) {
             return;
         }
 
-        Pose followerPose = robot.drive20 != null ? robot.drive20.getFollower().pose() : null;
+        Pose followerPose = (follower != null) ? follower.pose() : null;
         Pose2d pinpointFtcPose = null;
         if (followerPose != null) {
             Logger.recordOutput("Pinpoint/X", followerPose.x());
@@ -31,9 +32,9 @@ public final class PoseLogging {
             Logger.recordOutput("Pinpoint/TotalHeadingDeg", Double.NaN);
         }
 
-        if (robot.drive20 != null && robot.drive20.getFollower().velocity() != null) {
-            Logger.recordOutput("Pinpoint/VelX", robot.drive20.getFollower().velocity().vx);
-            Logger.recordOutput("Pinpoint/VelY", robot.drive20.getFollower().velocity().vy);
+        if (follower != null && follower.velocity() != null) {
+            Logger.recordOutput("Pinpoint/VelX", follower.velocity().vx);
+            Logger.recordOutput("Pinpoint/VelY", follower.velocity().vy);
         } else {
             Logger.recordOutput("Pinpoint/VelX", Double.NaN);
             Logger.recordOutput("Pinpoint/VelY", Double.NaN);

@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.subsystems.intake;
 
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -19,6 +20,8 @@ public class Spinner implements Subsystem {
     public Spinner(HardwareMap map) {
         spinner = map.get(DcMotorEx.class, "spinner");
         spinner.setDirection(DcMotorSimple.Direction.REVERSE);
+        spinner.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        spinner.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
 
     //---------------- Core Methods ----------------
@@ -37,6 +40,14 @@ public class Spinner implements Subsystem {
 
     public void setSpinnerSpinOut() {
         spinnerPow = -0.98;
+    }
+
+    public void setSpinnerSpinIn(double pow) {
+        spinnerPow = Math.abs(pow);
+    }
+
+    public void setSpinnerSpinOut(double pow) {
+        spinnerPow = -Math.abs(pow);
     }
 
     public void setSpinnerSpinZero() {

@@ -13,8 +13,6 @@ import org.firstinspires.ftc.teamcode.utility.visionUtility.Cluster;
 import org.firstinspires.ftc.teamcode.utility.visionUtility.DetectedBall;
 import org.psilynx.psikit.core.Logger;
 
-import java.io.OutputStream;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,15 +54,6 @@ public class Vision implements Subsystem {
     private double smoothedVelocityY = 0;
     private final double VELOCITY_SMOOTHING_FACTOR = 0.3; // Lower = smoother but more lag (0.0 to 1.0)
     private long lastCaptureTime = 0;
-
-    //------------Pictures--------------
-    private int snapshotCount = 0;
-    private static final String LAPTOP_IP = "192.168.43.9";
-    private static final int PORT = 6000;
-
-    private Socket socket;
-    private OutputStream out;
-    private String connectionStatus = "Disconnected"; //Status tracker
 
     //--------Constructor--------
     private Vision(HardwareMap map) {
@@ -393,62 +382,11 @@ public class Vision implements Subsystem {
         return new double[]{ targetX, targetY };
     }
 
-    //-------------Snapshot Methods---------------
-    public void startSnapshotServer() {
-        connectionStatus = "Attempting to connect to " + LAPTOP_IP + "...";
-        new Thread(() -> {
-            try {
-                socket = new Socket(LAPTOP_IP, PORT);
-                out = socket.getOutputStream();
-                connectionStatus = "CONNECTED to Laptop!";
-            } catch (Exception e) {
-                connectionStatus = "FAILED: " + e.getMessage();
-            }
-        }).start();
-    }
-
-    public void takeSnapshot() {
-        snapshotCount++;
-        String snapName = "dataset_snap_" + snapshotCount;
-        limelight.captureSnapshot(snapName);
-
-        new Thread(() -> {
-            try {
-                if (out != null) {
-                    out.write(("SNAP:" + snapName + "\n").getBytes());
-                    out.flush();
-                }
-            } catch (Exception e) {
-                connectionStatus = "SEND ERROR: " + e.getMessage();
-            }
-        }).start();
-    }
-
-    public void stopSnapshotServer() {
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
-        } catch (Exception ignored) {
-            System.out.println("An error occurred...");
-        }
-    }
-
-    public void stopLimelightAndServers() {
-        limelight.stop();
-        stopSnapshotServer();
-    }
-
-    // Getters for Telemetry
-    public String getConnectionStatus() { return connectionStatus; }
-    public int getSnapshotCount() { return snapshotCount; }
-
     //---------Interface Methods---------
     @Override
     public void init() {
         huskyLensInit();
         limelightInit();
-        startSnapshotServer();
     }
 
     @Override
@@ -469,7 +407,7 @@ public class Vision implements Subsystem {
     public void stop() {
         huskyLensTags = new HuskyLens.Block[0];
         huskyLensReady = false;
-        stopLimelightAndServers();
+        limelight.stop();
     }
 
 }

@@ -36,7 +36,7 @@ public class DriveControl implements Control {
         this(drive, null, gp1, gp2);
     }
 
-    /** Same stick rates and B/X controls, with Pedro handling motor output. */
+    /** Same stick rates and B/Back controls, with Pedro handling motor output. */
     public DriveControl(Drive2_0 drive, Gamepad gp1, Gamepad gp2) {
         this(null, drive, gp1, gp2);
     }
@@ -63,7 +63,7 @@ public class DriveControl implements Control {
     @Override
     public void update() {
         toggleSlowEdgeDetect.update(gp1.b);
-        toggleFieldCentricEdgeDetect.update(gp1.x);
+        toggleFieldCentricEdgeDetect.update(gp1.back);
 
         double axial = -gp1.left_stick_y;  // Note: pushing stick forward gives negative value
         double lateral = gp1.left_stick_x;
