@@ -18,6 +18,9 @@ public class Spinner implements Subsystem {
     private DcMotorEx spinner;
 
     //---------------- Software ----------------
+    private int ballCount;
+    private boolean lastSensor1Broken = false;
+    private boolean lastSensor4Broken = false;
     private double spinnerPow = 0.0;
 
 
@@ -27,6 +30,11 @@ public class Spinner implements Subsystem {
         sensor2 = map.get(DigitalChannel.class, "distance_2");
         sensor3 = map.get(DigitalChannel.class, "distance_3");
         sensor4 = map.get(DigitalChannel.class, "distance_4");
+
+        sensor1.setMode(DigitalChannel.Mode.INPUT);
+        sensor2.setMode(DigitalChannel.Mode.INPUT);
+        sensor3.setMode(DigitalChannel.Mode.INPUT);
+        sensor4.setMode(DigitalChannel.Mode.INPUT);
 
         spinner = map.get(DcMotorEx.class, "spinner");
         spinner.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -57,22 +65,54 @@ public class Spinner implements Subsystem {
     public boolean isSensor2Broken() { return !sensor2.getState(); }
     public boolean isSensor3Broken() { return !sensor3.getState(); }
     public boolean isSensor4Broken() { return !sensor4.getState(); }
-    
     public int getBallCount() {
-        int count = 0;
-        if (isSensor1Broken()) count++;
-        if (isSensor2Broken()) count++;
-        if (isSensor3Broken()) count++;
-        if (isSensor4Broken()) count++;
-        return count;
+        return ballCount;
+    }
+
+    public void setBallCount(int count) { //Use for preload in auto
+        this.ballCount = Math.max(0, Math.min(4, count)); // Keep within bounds [0, 4]
+    }
+
+    public void initBallCount() {
+        ballCount = 0;
+        lastSensor1Broken = isSensor1Broken();
+        lastSensor4Broken = isSensor4Broken();
+    }
+
+    public void updateBallCount() {
+        boolean current1Broken = isSensor1Broken();
+        boolean current4Broken = isSensor4Broken();
+
+        // 1. ENTRY (Rising Edge on Sensor 1 while Intaking): Ball breaks entry beam
+        if (current1Broken && !lastSensor1Broken && spinnerPow > 0) {
+            ballCount = Math.min(4, ballCount + 1);
+        }
+
+        // 2. EXIT (Falling Edge on Sensor 4 while Intaking): Ball leaves exit beam into outtake
+        if (!current4Broken && lastSensor4Broken && spinnerPow > 0) {
+            ballCount = Math.max(0, ballCount - 1);
+        }
+
+        // 3. EJECT (Falling Edge on Sensor 1 while Reversing): Ball spit out front
+        if (!current1Broken && lastSensor1Broken && spinnerPow < 0) {
+            ballCount = Math.max(0, ballCount - 1);
+        }
+
+        // Update state memory for next loop cycle
+        lastSensor1Broken = current1Broken;
+        lastSensor4Broken = current4Broken;
     }
     //---------------- Interface Methods ----------------
     @Override
-    public void init(){}
+    public void init(){
+        setSpinner(0);
+        initBallCount();
+    }
 
     @Override
     public void update(){
         setSpinner(spinnerPow);
+        updateBallCount();
     }
 
 

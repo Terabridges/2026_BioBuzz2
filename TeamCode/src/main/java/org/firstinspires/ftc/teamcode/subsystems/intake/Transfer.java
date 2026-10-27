@@ -23,8 +23,8 @@ public class Transfer implements Subsystem {
 
     private final double blockerStart = 0.5;
     //TODO find blocker limits
-    private final double blockerMin = 0.0;
-    private final double blockerMax = 1.0;
+    private final double BLOCKER_OPEN = 0.0;
+    private final double BLOCKER_CLOSE = 1.0;
 
     //---------------- Constructor ----------------
     public Transfer(HardwareMap map) {
@@ -38,7 +38,7 @@ public class Transfer implements Subsystem {
     }
 
     private void setBlocker(double pos){
-        blocker.setPosition(util.clamp(pos, blockerMin, blockerMax));
+        blocker.setPosition(util.clamp(pos, BLOCKER_CLOSE, BLOCKER_OPEN));
     }
 
     //---------------- Methods ----------------
@@ -46,15 +46,21 @@ public class Transfer implements Subsystem {
         transferPow = pow;
     }
 
-    public void setBlockerPos(double pos){
+    public void openBlocker(){
         blockerChanged = true;
-        blockerPos = pos;
+        blockerPos = BLOCKER_OPEN;
+    }
+
+    public void closeBlocker() {
+        blockerChanged = true;
+        blockerPos = BLOCKER_CLOSE;
     }
 
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setBlockerPos(blockerStart);
+        openBlocker();
+        setBlocker(blockerPos);
     }
 
     @Override
