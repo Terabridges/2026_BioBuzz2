@@ -39,6 +39,16 @@ public class IntakeControl implements Control {
     EdgeDetector spinOutRE = new EdgeDetector(() -> spinner.setSpinnerSpinOut());
     EdgeDetector spinOutFE = new EdgeDetector(() -> spinner.setSpinnerSpinZero(), true);
 
+    private final double TRIGGER_THRESHOLD = 0.1;
+    private final double INTAKE_MIN_POW = 0.5;
+    private final double INTAKE_MAX_POW = 0.98;
+
+    EdgeDetector toggleRampRE = new EdgeDetector(() -> ramp.toggleRamp());
+    EdgeDetector toggleBlockerRE = new EdgeDetector(() -> transfer.toggleBlocker());
+
+    // 1 = in, -1 = out, 0 = stopped
+    private int intakeDir = 0;
+
     //---------------- Additional Software ----------------
     private ShootingMode currentMode = ShootingMode.MANUAL_TRIGGERS;
     private SingleShotState singleShotState = SingleShotState.IDLE;
@@ -86,73 +96,43 @@ public class IntakeControl implements Control {
 
     //---------------- Control Methods ----------------
     private void updateRamp(){
-
+        toggleRampRE.update(gp1.a);
     }
 
-    private void updateSpinner(){
-        // Mode Switch (gp1.y) & Single Shot Execution (gp1.a)
-        modeSwitchBtn.update(gp1.y);
-        singleShotBtn.update(gp1.a);
-
-        if (currentMode == ShootingMode.MANUAL_TRIGGERS) {
-            // Original Trigger Control Logic
-            spinInRE.update(gp1.right_trigger > 0.1);
-            spinInFE.update(gp1.right_trigger > 0.1);
-            spinOutRE.update(gp1.left_trigger > 0.1);
-            spinOutFE.update(gp1.left_trigger > 0.1);
-        } else {
-            // Beam-Breaker Single-Shot Automation Logic
-            boolean currentSensor4 = spinner.isSensor4Broken();
-
-            switch (singleShotState) {
-                case IDLE:
-                    break;
-
-                case FEEDING:
-                    if (currentSensor4) {
-                        singleShotState = SingleShotState.BALL_DETECTED;
-                    }
-                    break;
-
-                case BALL_DETECTED:
-                    // Falling Edge: Ball was breaking sensor 4, now clear
-                    if (!currentSensor4 && lastSensor4State) {
-                        transfer.closeBlocker();
-                        spinner.setSpinnerPow(-0.3); // Quick reverse tap to back off trailing ball
-                        reverseTimer.reset();
-                        singleShotState = SingleShotState.REJECT_TRAILING;
-                    }
-                    break;
-
-                case REJECT_TRAILING:
-                    if (reverseTimer.milliseconds() > 80) {
-                        spinner.setSpinnerSpinZero();
-                        singleShotState = SingleShotState.IDLE;
-                    }
-                    break;
-            }
-
-            lastSensor4State = currentSensor4;
-        }
+    // Trigger past the threshold maps to power: below 0.5 -> 0.5, 0.5-0.98 -> same, above 0.98 -> 0.98
+    private double triggerToIntakePow(double trigger){
+        return Math.min(Math.max(trigger, INTAKE_MIN_POW), INTAKE_MAX_POW);
     }
 
-    private void updateTransfer(){
+    // Spinner + transfer: RTrigger held = in, LTrigger held = out, both or neither = stop
+    private void updateIntake(){
+        boolean in = gp1.right_trigger > TRIGGER_THRESHOLD;
+        boolean out = gp1.left_trigger > TRIGGER_THRESHOLD;
+        int dir = (in == out) ? 0 : (in ? 1 : -1);
 
+        // Power follows the trigger every loop while held, stop is only sent once on release
+        if (dir == 1) intake.intakeIn(triggerToIntakePow(gp1.right_trigger));
+        else if (dir == -1) intake.intakeOut(triggerToIntakePow(gp1.left_trigger));
+        else if (intakeDir != 0) intake.intakeStop();
+        intakeDir = dir;
+    }
+
+    private void updateBlocker(){
+        toggleBlockerRE.update(gp1.y);
     }
 
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
         updateRamp();
-        updateSpinner();
-        updateTransfer();
+        updateIntake();
+        updateBlocker();
     }
 
     @Override
     public void addTelemetry(Telemetry telemetry){
-        telemetry.addData("Shooting Mode", currentMode);
-        telemetry.addData("Single Shot State", singleShotState);
-        telemetry.addData("Ball Count", spinner.getBallCount());
-        telemetry.addData("Sensor 4 Broken", spinner.isSensor4Broken());
+        telemetry.addData("Ramp Up", ramp.isRampUp());
+        telemetry.addData("Blocker Open", transfer.isBlockerOpen());
+        telemetry.addData("Intake Dir", intakeDir);
     }
 }

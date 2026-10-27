@@ -63,7 +63,7 @@ public class DriveControl implements Control {
     @Override
     public void update() {
         toggleSlowEdgeDetect.update(gp1.b);
-        toggleFieldCentricEdgeDetect.update(gp1.x);
+        toggleFieldCentricEdgeDetect.update(gp1.back);
 
         double axial = -gp1.left_stick_y;  // Note: pushing stick forward gives negative value
         double lateral = gp1.left_stick_x;

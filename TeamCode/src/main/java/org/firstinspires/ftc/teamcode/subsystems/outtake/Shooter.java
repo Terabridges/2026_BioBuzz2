@@ -25,9 +25,14 @@ public class Shooter implements Subsystem {
     private double flywheelPow = 0.0;
     private double hoodPos = hoodStart;
     private boolean hoodChanged = false;
-    //TODO find hood limits
-    private final double hoodMin = 0.0;
-    private final double hoodMax = 1.0;
+    private final double hoodMin = 0.39;
+    private final double hoodMax = 0.82;
+    // TODO verify that increasing the position raises the hood
+    public static double hoodStep = 0.02;
+
+    public static double shootRPM = 2000;
+    public static double rpmStep = 100;
+    private final double maxRPM = 6000;
 
     private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
     private final double SHOOTER_GEAR_RATIO = 1.0;
@@ -78,8 +83,44 @@ public class Shooter implements Subsystem {
 
     public void setHoodPos(double pos){
         hoodChanged = true;
-        hoodPos = pos;
+        hoodPos = util.clamp(pos, hoodMin, hoodMax);
     }
+
+    public void hoodUp(){
+        setHoodPos(hoodPos + hoodStep);
+    }
+
+    public void hoodDown(){
+        setHoodPos(hoodPos - hoodStep);
+    }
+
+    public double getHoodPos(){return hoodPos;}
+
+    public boolean isShooting(){
+        return flywheelTargetRPM > 0;
+    }
+
+    public void toggleShooting(){
+        setTargetRPM(isShooting() ? 0 : shootRPM);
+    }
+
+    // Changes the RPM used when shooting, and applies it right away if already shooting
+    public void adjustShootRPM(double delta){
+        shootRPM = util.clamp(shootRPM + delta, 0, maxRPM);
+        if (isShooting()) {
+            setTargetRPM(shootRPM);
+        }
+    }
+
+    public void increaseShootRPM(){
+        adjustShootRPM(rpmStep);
+    }
+
+    public void decreaseShootRPM(){
+        adjustShootRPM(-rpmStep);
+    }
+
+    public double getShootRPM(){return shootRPM;}
 
     public double velToRPM(double tps) {
         double rps = tps / (TICKS_PER_REV * SHOOTER_GEAR_RATIO);

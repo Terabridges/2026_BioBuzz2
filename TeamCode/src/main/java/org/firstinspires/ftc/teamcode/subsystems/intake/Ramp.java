@@ -20,9 +20,13 @@ public class Ramp implements Subsystem {
     private boolean negativeOffset;
     private double rampPos = rampStart;
     private boolean rampChanged = false;
-    //TODO find ramp limits
-    private final double rampMinPos = 0;
-    private final double rampMaxPos = 1;
+    // Limits shared by both servos: left 0.47 - 0.75, right (left + offset) 0.494 - 0.774
+    private final double rampMinPos = 0.47;
+    private final double rampMaxPos = 0.774;
+    // Left servo positions, right gets the offset added
+    private final double rampDownPos = 0.47;
+    private final double rampUpPos = 0.73;
+    private boolean rampUp = false;
 
     //---------------- Constructor ----------------
     public Ramp(HardwareMap map) {
@@ -48,12 +52,29 @@ public class Ramp implements Subsystem {
         rampPos = pos;
     }
 
+    public void setRampUp(){
+        rampUp = true;
+        setRampPos(rampUpPos);
+    }
+
+    public void setRampDown(){
+        rampUp = false;
+        setRampPos(rampDownPos);
+    }
+
+    public void toggleRamp(){
+        if (rampUp) setRampDown();
+        else setRampUp();
+    }
+
+    public boolean isRampUp(){return rampUp;}
+
     public double getRightRampOffset(){return rightRampOffset;}
 
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        //setRampPos(rampStart);
+        setRampUp();
     }
 
     @Override
