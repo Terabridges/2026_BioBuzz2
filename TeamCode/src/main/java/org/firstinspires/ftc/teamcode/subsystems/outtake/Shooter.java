@@ -55,7 +55,7 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
-        flywheel = map.get(DcMotorEx.class, "fly_right");
+        flywheel = map.get(DcMotorEx.class, "flywheel_right");
         flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -121,6 +121,10 @@ public class Shooter implements Subsystem {
     }
 
     public double getShootRPM(){return shootRPM;}
+
+    public double getFlywheelVel() {
+        return flywheel.getVelocity();
+    }
 
     public double velToRPM(double tps) {
         double rps = tps / (TICKS_PER_REV * SHOOTER_GEAR_RATIO);

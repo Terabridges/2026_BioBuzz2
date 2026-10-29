@@ -25,7 +25,7 @@
             <Servo name="turret_right" port="3" />
             <Servo name="blocker" port="4" />
             <Servo name="hood" port="5" />
-            <goBILDAPinpoint name="pinpoint" port="0" bus="0" />
+            <goBILDAPinpoint name="pinpoint" port="1" bus="0" />
         </LynxModule>
     </LynxUsbDevice>
     <EthernetDevice

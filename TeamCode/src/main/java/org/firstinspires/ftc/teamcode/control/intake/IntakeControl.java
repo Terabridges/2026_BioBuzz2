@@ -15,8 +15,8 @@ public class IntakeControl implements Control {
 
     //---------------- Mode & State Definitions ----------------
     public enum ShootingMode {
-        MANUAL_TRIGGERS, // Standard trigger-based intake control
-        SINGLE_SHOT      // Automated single-ball shoot sequence using beam breaker
+        MANUAL_TRIGGERS, // Standard trigger control for intake/outtake
+        SINGLE_SHOT      // Beam-breaker automated single-ball sequence
     }
 
     private enum SingleShotState {
@@ -56,7 +56,7 @@ public class IntakeControl implements Control {
     private boolean lastSensor4State = false;
     private ElapsedTime reverseTimer = new ElapsedTime();
 
-    // Controls for Mode Toggle and Single Shot Trigger
+    // Mode Switch on Gamepad 1 'B' | Single Shot Execution on Gamepad 1 'X'
     private EdgeDetector modeSwitchBtn = new EdgeDetector(() -> toggleShootingMode());
     private EdgeDetector singleShotBtn = new EdgeDetector(() -> triggerSingleShot());
 
@@ -94,45 +94,90 @@ public class IntakeControl implements Control {
         transfer.closeBlocker();
     }
 
-    //---------------- Control Methods ----------------
-    private void updateRamp(){
-        toggleRampRE.update(gp1.a);
-    }
-
-    // Trigger past the threshold maps to power: below 0.5 -> 0.5, 0.5-0.98 -> same, above 0.98 -> 0.98
     private double triggerToIntakePow(double trigger){
         return Math.min(Math.max(trigger, INTAKE_MIN_POW), INTAKE_MAX_POW);
     }
 
-    // Spinner + transfer: RTrigger held = in, LTrigger held = out, both or neither = stop
+    //---------------- Control Sub-methods ----------------
+    private void updateRamp(){
+        toggleRampRE.update(gp1.a); // Gamepad 1 A -> Ramp
+    }
+
+    private void updateBlocker(){
+        toggleBlockerRE.update(gp1.y); // Gamepad 1 Y -> Blocker
+    }
+
+    private void updateModeAndActions() {
+        modeSwitchBtn.update(gp2.b); // Gamepad 1 B -> Switch Manual/Single Shot Mode
+        singleShotBtn.update(gp2.x); // Gamepad 1 X -> Execute Single Shot
+    }
+
     private void updateIntake(){
+        // Single-shot state machine overrides manual triggers when active
+        if (currentMode == ShootingMode.SINGLE_SHOT && singleShotState != SingleShotState.IDLE) {
+            boolean currentSensor4 = spinner.isSensor4Broken();
+
+            switch (singleShotState) {
+                case FEEDING:
+                    if (currentSensor4) {
+                        singleShotState = SingleShotState.BALL_DETECTED;
+                    }
+                    break;
+
+                case BALL_DETECTED:
+                    // Falling Edge: Ball was breaking beam 4, now clear into shooter
+                    if (!currentSensor4 && lastSensor4State) {
+                        transfer.closeBlocker();
+                        spinner.setSpinnerPow(-0.3); // Quick reverse pulse to separate trailing ball
+                        reverseTimer.reset();
+                        singleShotState = SingleShotState.REJECT_TRAILING;
+                    }
+                    break;
+
+                case REJECT_TRAILING:
+                    if (reverseTimer.milliseconds() > 80) {
+                        spinner.setSpinnerSpinZero();
+                        singleShotState = SingleShotState.IDLE;
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            lastSensor4State = currentSensor4;
+            return; // Skip manual trigger evaluation while single shot sequence is running
+        }
+
+        // Manual Trigger Control (Runs in MANUAL_TRIGGERS mode or when SINGLE_SHOT is IDLE)
         boolean in = gp1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gp1.left_trigger > TRIGGER_THRESHOLD;
         int dir = (in == out) ? 0 : (in ? 1 : -1);
 
-        // Power follows the trigger every loop while held, stop is only sent once on release
         if (dir == 1) intake.intakeIn(triggerToIntakePow(gp1.right_trigger));
         else if (dir == -1) intake.intakeOut(triggerToIntakePow(gp1.left_trigger));
         else if (intakeDir != 0) intake.intakeStop();
-        intakeDir = dir;
-    }
 
-    private void updateBlocker(){
-        toggleBlockerRE.update(gp1.y);
+        intakeDir = dir;
     }
 
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
         updateRamp();
-        updateIntake();
         updateBlocker();
+        updateModeAndActions();
+        updateIntake();
     }
 
     @Override
     public void addTelemetry(Telemetry telemetry){
+        telemetry.addData("Shooting Mode", currentMode);
+        telemetry.addData("Single Shot State", singleShotState);
         telemetry.addData("Ramp Up", ramp.isRampUp());
         telemetry.addData("Blocker Open", transfer.isBlockerOpen());
         telemetry.addData("Intake Dir", intakeDir);
+        telemetry.addData("Sensor 4 Broken", spinner.isSensor4Broken());
+        telemetry.addData("Ball Count", spinner.getBallCount());
     }
 }
