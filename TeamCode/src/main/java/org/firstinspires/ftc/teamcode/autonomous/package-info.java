@@ -14,7 +14,7 @@
  *
  * BaseAutoOpMode owns init/start/loop/stop, updates FollowerManager and Robot,
  * and offers the stopped auto follower to TeleOp through a one-time handoff.
- * Drive2_0 and Robot never create or update a Pedro follower themselves.
+ * PedroDrive and Robot never create or update a Pedro follower themselves.
  * SelectableAuto runs the selected strategy normally. AutoPathTest runs the same
  * strategy in PATH_TEST mode, skipping actions created through mechanismAction.
  * Path testing verifies movement, not mechanism timing or sensor-driven decisions.

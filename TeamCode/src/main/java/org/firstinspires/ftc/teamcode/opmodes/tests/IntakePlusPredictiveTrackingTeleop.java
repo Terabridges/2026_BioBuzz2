@@ -13,7 +13,8 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.drive.Drive2_0Control;
+import org.firstinspires.ftc.teamcode.control.drive.PredictiveDriveControl;
+import org.firstinspires.ftc.teamcode.subsystems.drive.PedroDrive;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
@@ -42,7 +43,7 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     Gamepad previousGamepad2;
     VisionControl visionControl;
     IntakeControl intakeControl;
-    Drive2_0Control driveControl;
+    PredictiveDriveControl driveControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
@@ -54,10 +55,10 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
         followerManager = FollowerManager.forTeleOp(hardwareMap);
         follower = followerManager.follower();
-        robot = new Robot(hardwareMap, telemetry, follower);
+        robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
-        driveControl = new Drive2_0Control(robot.drive20, gamepad1, gamepad2);
+        driveControl = new PredictiveDriveControl(new PedroDrive(follower), gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
         if (!followerManager.resumedFromAuto()) {
