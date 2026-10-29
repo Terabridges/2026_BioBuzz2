@@ -36,7 +36,7 @@ public class DriveControl implements Control {
         this(drive, null, gp1, gp2);
     }
 
-    /** Same stick rates and B/X controls, with Pedro handling motor output. */
+    /** Same stick rates and B/Back controls, with Pedro handling motor output. */
     public DriveControl(Drive2_0 drive, Gamepad gp1, Gamepad gp2) {
         this(null, drive, gp1, gp2);
     }

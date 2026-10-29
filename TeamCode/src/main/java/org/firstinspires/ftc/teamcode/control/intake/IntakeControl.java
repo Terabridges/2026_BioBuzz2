@@ -100,7 +100,7 @@ public class IntakeControl implements Control {
 
     //---------------- Control Sub-methods ----------------
     private void updateRamp(){
-        toggleRampRE.update(gp1.a); // Gamepad 1 A -> Ramp
+        toggleRampRE.update(gp1.a);
     }
 
     private void updateBlocker(){

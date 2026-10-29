@@ -62,6 +62,8 @@ public class Shooter implements Subsystem {
         hood = map.get(Servo.class, "hood");
 
         flywheelPID = new PIDFController(p, i, d, f);
+        // The live target remains configurable for the tuner, but never carries into a new OpMode.
+        stop();
         //flywheelPID.setIntegrationBounds(-integrationBounds, integrationBounds);
         //flywheelPID.setTolerance(posTolerance);
     }
@@ -178,7 +180,19 @@ public class Shooter implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
+        stop();
         //setHoodPos(hoodStart);
+    }
+
+    @Override
+    public void stop(){
+        flywheelTargetRPM = 0;
+        flywheelOffset = 0;
+        newRPM = 0;
+        flywheelPow = 0;
+        hoodChanged = false;
+        flywheelPID.reset();
+        flywheel.setPower(0);
     }
 
     @Override
@@ -191,7 +205,13 @@ public class Shooter implements Subsystem {
 
         newRPM = flywheelTargetRPM + flywheelOffset;
         if (useFlywheelPID) {
-            setFlywheelRPM(newRPM);
+            if (newRPM <= 0) {
+                // A stopped shooter must not receive residual power from PID integral state.
+                flywheelPID.reset();
+                flywheelPow = 0;
+            } else {
+                setFlywheelRPM(newRPM);
+            }
         }
 
         setFlywheel(flywheelPow);

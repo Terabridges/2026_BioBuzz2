@@ -112,6 +112,11 @@ public class Turret implements Subsystem {
 
     //---------------- Interface Methods ----------------
     @Override
+    public void stop(){
+        stopTurret();
+    }
+
+    @Override
     public void init(){
         setTurret(turretStartPos);
         loopTimer.reset();

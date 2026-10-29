@@ -116,8 +116,14 @@ public class Spinner implements Subsystem {
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
-        setSpinner(0);
+        stop();
         initBallCount();
+    }
+
+    @Override
+    public void stop(){
+        spinnerPow = 0;
+        setSpinner(0);
     }
 
     @Override
