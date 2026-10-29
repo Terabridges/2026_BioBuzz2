@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.subsystems.vision;
 
 import com.pedropathing.math.Pose;
+import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -12,8 +13,6 @@ import org.firstinspires.ftc.teamcode.utility.visionUtility.Cluster;
 import org.firstinspires.ftc.teamcode.utility.visionUtility.DetectedBall;
 import org.psilynx.psikit.core.Logger;
 
-import java.io.OutputStream;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,10 +22,14 @@ public class Vision implements Subsystem {
 
     //-------------Hardware------------
     private Limelight3A limelight;
+    private HuskyLens huskyLens;
 
     //-------------Software-------------
     public LLResult latest;
     private int pipeline = 0;
+
+    private boolean huskyLensReady;
+    private HuskyLens.Block[] huskyLensTags = new HuskyLens.Block[0];
 
     private double lastFieldX = 0;
     private double lastFieldY = 0;
@@ -52,18 +55,10 @@ public class Vision implements Subsystem {
     private final double VELOCITY_SMOOTHING_FACTOR = 0.3; // Lower = smoother but more lag (0.0 to 1.0)
     private long lastCaptureTime = 0;
 
-    //------------Pictures--------------
-    private int snapshotCount = 0;
-    private static final String LAPTOP_IP = "192.168.43.9";
-    private static final int PORT = 6000;
-
-    private Socket socket;
-    private OutputStream out;
-    private String connectionStatus = "Disconnected"; //Status tracker
-
     //--------Constructor--------
     private Vision(HardwareMap map) {
         limelight = map.get(Limelight3A.class, "limelight");
+        huskyLens = map.tryGet(HuskyLens.class, "huskylens");
     }
     private static Vision instance = null;
     public static Vision getInstance(HardwareMap map) {
@@ -82,6 +77,55 @@ public class Vision implements Subsystem {
 
     private void limelightUpdate() {
         latest = limelight.getLatestResult();
+    }
+
+    //---------HuskyLens AprilTags-----------
+    private void huskyLensInit() {
+        huskyLensTags = new HuskyLens.Block[0];
+        huskyLensReady = huskyLens != null && huskyLens.knock();
+        if (huskyLensReady) {
+            huskyLens.selectAlgorithm(HuskyLens.Algorithm.TAG_RECOGNITION);
+        }
+    }
+
+    private void huskyLensUpdate() {
+        if (!huskyLensReady) return;
+        List<HuskyLens.Block> detected = new ArrayList<>();
+        for (HuskyLens.Block tag : huskyLens.blocks()) {
+            // The SDK can leave null entries for incomplete tag responses.
+            if (tag != null) detected.add(tag);
+        }
+        huskyLensTags = detected.toArray(new HuskyLens.Block[0]);
+    }
+
+    public boolean isHuskyLensReady() {
+        return huskyLensReady;
+    }
+
+    public boolean hasHuskyLensTag() {
+        return huskyLensTags.length > 0;
+    }
+
+    /** Uses the HuskyLens learned ID, not the official printed AprilTag number. */
+    public boolean hasHuskyLensTag(int learnedId) {
+        return getHuskyLensTag(learnedId) != null;
+    }
+
+    /** Latest raw detections: id, center x/y, width/height, and left/top in pixels. */
+    public HuskyLens.Block[] getHuskyLensTags() {
+        return huskyLensTags.clone();
+    }
+
+    /** Returns the first detection with this learned ID, or null if not detected. */
+    public HuskyLens.Block getHuskyLensTag(int learnedId) {
+        for (HuskyLens.Block tag : huskyLensTags) {
+            if (tag.id == learnedId) return tag;
+        }
+        return null;
+    }
+
+    private void logFeedToLogger() {
+        //This will be used for PsiKit later
     }
 
     public boolean hasTarget() {
@@ -338,61 +382,11 @@ public class Vision implements Subsystem {
         return new double[]{ targetX, targetY };
     }
 
-    //-------------Snapshot Methods---------------
-    public void startSnapshotServer() {
-        connectionStatus = "Attempting to connect to " + LAPTOP_IP + "...";
-        new Thread(() -> {
-            try {
-                socket = new Socket(LAPTOP_IP, PORT);
-                out = socket.getOutputStream();
-                connectionStatus = "CONNECTED to Laptop!";
-            } catch (Exception e) {
-                connectionStatus = "FAILED: " + e.getMessage();
-            }
-        }).start();
-    }
-
-    public void takeSnapshot() {
-        snapshotCount++;
-        String snapName = "dataset_snap_" + snapshotCount;
-        limelight.captureSnapshot(snapName);
-
-        new Thread(() -> {
-            try {
-                if (out != null) {
-                    out.write(("SNAP:" + snapName + "\n").getBytes());
-                    out.flush();
-                }
-            } catch (Exception e) {
-                connectionStatus = "SEND ERROR: " + e.getMessage();
-            }
-        }).start();
-    }
-
-    public void stopSnapshotServer() {
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
-        } catch (Exception ignored) {
-            System.out.println("An error occurred...");
-        }
-    }
-
-    public void stopLimelightAndServers() {
-        limelight.stop();
-        stopSnapshotServer();
-    }
-
-    // Getters for Telemetry
-    public String getConnectionStatus() { return connectionStatus; }
-    public int getSnapshotCount() { return snapshotCount; }
-
     //---------Interface Methods---------
     @Override
     public void init() {
+        huskyLensInit();
         limelightInit();
-        startSnapshotServer();
     }
 
     @Override
@@ -406,11 +400,14 @@ public class Vision implements Subsystem {
     @Override
     public void update() {
         limelightUpdate();
+        huskyLensUpdate();
     }
 
     @Override
     public void stop() {
-        stopLimelightAndServers();
+        huskyLensTags = new HuskyLens.Block[0];
+        huskyLensReady = false;
+        limelight.stop();
     }
 
 }

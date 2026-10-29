@@ -73,6 +73,11 @@ public class Ramp implements Subsystem {
 
     //---------------- Interface Methods ----------------
     @Override
+    public void stop(){
+        rampChanged = false;
+    }
+
+    @Override
     public void init(){
         setRampUp();
     }

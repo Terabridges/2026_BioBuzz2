@@ -6,12 +6,15 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.subsystems.drive.Drive;
+import org.firstinspires.ftc.teamcode.subsystems.drive.Drive2_0;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 import org.firstinspires.ftc.teamcode.utility.driveUtility.Rates;
 
 @Configurable
 public class DriveControl implements Control {
     private Drive drive;
+    private Drive2_0 pedroDrive;
+    private boolean pedroFieldCentric;
     private Gamepad gp1;
     private Gamepad gp2;
     private EdgeDetector toggleSlowEdgeDetect;
@@ -30,14 +33,25 @@ public class DriveControl implements Control {
     //--------Constructor---------
 
     public DriveControl(Drive drive, Gamepad gp1, Gamepad gp2) {
+        this(drive, null, gp1, gp2);
+    }
+
+    /** Same stick rates and B/Back controls, with Pedro handling motor output. */
+    public DriveControl(Drive2_0 drive, Gamepad gp1, Gamepad gp2) {
+        this(null, drive, gp1, gp2);
+    }
+
+    private DriveControl(Drive drive, Drive2_0 pedroDrive, Gamepad gp1, Gamepad gp2) {
         this.drive = drive;
+        this.pedroDrive = pedroDrive;
         this.gp1 = gp1;
         this.gp2 = gp2;
 
-        // TODO: Since slowMode and fieldCentric are things that this class cares about, we should bring both into this class
-        // Anay, can you move the drive::toggleFieldCentric to this class?
         toggleSlowEdgeDetect = new EdgeDetector(this::toggleSlowMode);
-        toggleFieldCentricEdgeDetect = new EdgeDetector(drive::toggleFieldCentric);
+        toggleFieldCentricEdgeDetect = new EdgeDetector(() -> {
+            if (drive != null) drive.toggleFieldCentric();
+            else pedroFieldCentric = !pedroFieldCentric;
+        });
     }
 
     //---------Methods--------------
@@ -69,7 +83,11 @@ public class DriveControl implements Control {
             yaw *= 0.5;
         }
 
-        if (drive.useFieldCentric) {
+        if (pedroDrive != null) {
+            // Legacy inputs use right/clockwise positive; Pedro uses left/counterclockwise.
+            if (pedroFieldCentric) pedroDrive.fieldCentric(axial, -lateral, -yaw);
+            else pedroDrive.robotCentric(axial, -lateral, -yaw);
+        } else if (drive.useFieldCentric) {
             drive.driveFieldRelative(axial, lateral, yaw);
         } else if(drive.manualDrive) {
             // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
@@ -80,6 +98,6 @@ public class DriveControl implements Control {
     @Override
     public void addTelemetry(Telemetry t) {
         t.addData("Slow Mode", slowMode);
-        t.addData("Field Centric", drive.useFieldCentric);
+        t.addData("Field Centric", pedroDrive != null ? pedroFieldCentric : drive.useFieldCentric);
     }
 }

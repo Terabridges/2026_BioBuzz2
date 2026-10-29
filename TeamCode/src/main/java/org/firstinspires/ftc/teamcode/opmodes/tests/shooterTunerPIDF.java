@@ -51,6 +51,11 @@ public class shooterTunerPIDF extends OpMode {
     }
 
     @Override
+    public void stop(){
+        if (robot != null) robot.stop();
+    }
+
+    @Override
     public void loop() {
         gamepadUpdate();
         if (!previousGamepad1.a && currentGamepad1.a){
