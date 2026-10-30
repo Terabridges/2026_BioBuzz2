@@ -7,6 +7,9 @@ public class Cluster {
     private final List<DetectedBall> balls = new ArrayList<>();
     private double relativeCenterX;
     private double relativeCenterY;
+    private static final double POLLEN_REWARD = 10.0;   // Base reward per pollen ball
+    private static final double NECTAR_PENALTY = 25.0;  // Base penalty per nectar ball
+    private static final double PURITY_BONUS = 1.5;
 
     public boolean belongs(DetectedBall ball) {
         if (balls.isEmpty()) return true;
@@ -22,7 +25,32 @@ public class Cluster {
     }
 
     public double score() {
-        return balls.stream().mapToDouble(DetectedBall::getConfidence).sum();
+        if (balls.isEmpty()) {
+            return 0.0;
+        }
+
+        double netScore = 0.0;
+        int pollenCount = 0;
+        int nectarCount = 0;
+
+        for (DetectedBall ball: balls) {
+            double weight = ball.getConfidence();
+
+            if (ball.getType() == DetectedBall.BallType.POLLEN) {
+                netScore += (POLLEN_REWARD * weight);
+                pollenCount++;
+            } else { // RED or BLUE Nectar
+                netScore -= (NECTAR_PENALTY * weight);
+                nectarCount++;
+            }
+
+        }
+
+        if (pollenCount > 0 && nectarCount == 0) {
+            netScore *= PURITY_BONUS;
+        }
+
+        return netScore;
     }
 
     private void recalculateCenter() {

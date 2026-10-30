@@ -39,7 +39,7 @@ public abstract class BaseAutoOpMode extends OpMode {
 
     /** Path-only diagnostics override this to avoid initializing unrelated hardware. */
     protected boolean usesRobot() { return executionMode() != AutoContext.Mode.PATH_TEST; }
-    protected Robot createRobot() { return new Robot(hardwareMap, telemetry, follower); }
+    protected Robot createRobot() { return new Robot(hardwareMap, telemetry); }
     protected Follower createFollower() { return Constants.create(hardwareMap); }
     protected void resetSelection() {}
     protected void updateSelection() {}

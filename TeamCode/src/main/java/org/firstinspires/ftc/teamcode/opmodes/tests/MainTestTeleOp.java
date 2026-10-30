@@ -15,11 +15,14 @@ import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
+import org.psilynx.psikit.core.Logger;
+import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@PsiKitAutoLog(rlogPort = 5802)
 @TeleOp(name = "MainTestTeleOp", group = "Test")
 public class MainTestTeleOp extends OpMode {
 
@@ -50,11 +53,11 @@ public class MainTestTeleOp extends OpMode {
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
 
         followerManager = FollowerManager.forTeleOp(hardwareMap);
-        robot = new Robot(hardwareMap, telemetry, followerManager.follower());
+        robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
         outtakeControl = new OuttakeControl(robot.outtake, gamepad1, gamepad2);
-        driveControl = new DriveControl(robot.drive20, gamepad1, gamepad2);
+        driveControl = new DriveControl(robot.drive, gamepad1, gamepad2);
 
         controls = new ArrayList<>(Arrays.asList(
                 visionControl,

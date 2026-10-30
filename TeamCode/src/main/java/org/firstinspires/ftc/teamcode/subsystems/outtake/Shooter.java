@@ -15,13 +15,13 @@ import org.firstinspires.ftc.teamcode.utility.Utility;
 public class Shooter implements Subsystem {
 
     //---------------- Hardware ----------------
-    private DcMotorEx flywheelLeft;
-    private DcMotorEx flywheelRight;
+    private DcMotorEx flywheel;
     private Servo hood;
 
     //---------------- Software ----------------
     private final Utility util = new Utility();
     private final double hoodStart = 0.5;
+
     private double flywheelPow = 0.0;
     private double hoodPos = hoodStart;
     private boolean hoodChanged = false;
@@ -37,7 +37,8 @@ public class Shooter implements Subsystem {
     private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
     private final double SHOOTER_GEAR_RATIO = 1.0;
     private PIDFController flywheelPID;
-    public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023;
+    public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.000213;
+    // Oct 25 f = 0.000213, p = , d = , i =
     //OLD: p = 0.0015, i = 0.0001, d = 0.0, f = 0.0002;
     //NEW: p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023
     //public static double integrationBounds = 250;
@@ -54,14 +55,10 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
-        flywheelLeft = map.get(DcMotorEx.class, "flywheel_left");
-        flywheelRight = map.get(DcMotorEx.class, "flywheel_right");
-        flywheelLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        flywheelRight.setDirection(DcMotorSimple.Direction.REVERSE);
-        flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        flywheelRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        flywheelLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        flywheelRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        flywheel = map.get(DcMotorEx.class, "flywheel");
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         hood = map.get(Servo.class, "hood");
 
         flywheelPID = new PIDFController(p, i, d, f);
@@ -73,8 +70,7 @@ public class Shooter implements Subsystem {
 
     //---------------- Core Methods ----------------
     private void setFlywheel(double pow){
-        flywheelLeft.setPower(pow);
-        flywheelRight.setPower(pow);
+        flywheel.setPower(pow);
     }
 
     private void setHood(double pos){
@@ -128,6 +124,10 @@ public class Shooter implements Subsystem {
 
     public double getShootRPM(){return shootRPM;}
 
+    public double getFlywheelVel() {
+        return flywheel.getVelocity();
+    }
+
     public double velToRPM(double tps) {
         double rps = tps / (TICKS_PER_REV * SHOOTER_GEAR_RATIO);
         return rps * 60;
@@ -141,7 +141,7 @@ public class Shooter implements Subsystem {
 
     public double setFlywheelPID(double targetRPM) {
         flywheelPID.setPIDF(p, i, d, f);
-        currentRPM = velToRPM(flywheelLeft.getVelocity());
+        currentRPM = velToRPM(flywheel.getVelocity());
         flywheelPow = flywheelPID.calculate(currentRPM, targetRPM);
         flywheelPow = util.clamp(flywheelPow, 0, flywheelMaxPower);
         return flywheelPow;
@@ -192,11 +192,7 @@ public class Shooter implements Subsystem {
         flywheelPow = 0;
         hoodChanged = false;
         flywheelPID.reset();
-        try {
-            flywheelLeft.setPower(0);
-        } finally {
-            flywheelRight.setPower(0);
-        }
+        flywheel.setPower(0);
     }
 
     @Override
