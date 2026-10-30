@@ -1,45 +1,54 @@
 package org.firstinspires.ftc.teamcode.utility;
 
-public class EdgeDetector {
-    public boolean isPressed = false;
-    public Runnable func;
-    public boolean isRunning = false;
-    public boolean isFallingDetector;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import javax.annotation.Nullable;
+
+public class EdgeDetector implements Consumer<Boolean> {
+
+    private final Optional<Runnable> risingEdge;
+    private final Optional<Runnable> fallingEdge;
+
+    public boolean wasPressed = false;
 
     //Constructor
-
+    public EdgeDetector(
+            @Nullable Runnable risingEdge,
+            @Nullable Runnable fallingEdge)
+    {
+        this.risingEdge = Optional.ofNullable(risingEdge);
+        this.fallingEdge = Optional.ofNullable(fallingEdge);
+    }
     public EdgeDetector(Runnable f, boolean isFalling) {
-        func = f;
-        isFallingDetector = isFalling;
+        if (isFalling) {
+            this.risingEdge = Optional.empty();
+            this.fallingEdge = Optional.of(f);
+        } else {
+            this.risingEdge = Optional.of(f);
+            this.fallingEdge = Optional.empty();
+        }
     }
 
     public EdgeDetector(Runnable f) {
         this(f, false);
     }
 
-    public void update(boolean cond) {
-        if (cond && !isPressed) { //Rising Edge
-            if (!isFallingDetector) {
-                func.run();
-                isRunning = true;
-            }
-        } else if (!cond && isPressed) { //Falling edge
-            if (isFallingDetector) {
-                func.run();
-                isRunning = true;
-            }
-        } else {
-            isRunning = false;
-        }
-        isPressed = cond;
+    public void update(Boolean condition) {
+        accept(condition);
     }
 
-    public void updateOnPress(boolean cond) {
-        if(cond) func.run();
+    @Override
+    public void accept(Boolean isPressed) {
+        if (isPressed && !wasPressed) { //Rising Edge
+            risingEdge.ifPresent(Runnable::run);
+        } else if (!isPressed && wasPressed) { //Falling edge
+            fallingEdge.ifPresent(Runnable::run);
+        }
+        wasPressed = isPressed;
     }
 
     public void reset() {
-        isPressed = false;
-        isRunning = false;
+        wasPressed = false;
     }
 }
