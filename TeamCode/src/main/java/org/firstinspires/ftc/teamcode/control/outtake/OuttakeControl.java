@@ -9,58 +9,56 @@ import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Turret;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.psilynx.psikit.core.Logger;
 
 
 public class OuttakeControl implements Control {
 
     //---------------- Software ----------------
-    Outtake outtake;
-    Shooter shooter;
-    Turret turret;
-    Lights lights;
-    Gamepad gp1;
-    Gamepad gp2;
+    private final Shooter shooter;
+    private final Turret turret;
+    private final Lights lights;
 
-    private EdgeDetector toggleShooterEdgeDetect = new EdgeDetector(() -> shooter.toggleShooting());
-    private EdgeDetector increaseRPMEdgeDetect = new EdgeDetector(() -> shooter.increaseShootRPM());
-    private EdgeDetector decreaseRPMEdgeDetect = new EdgeDetector(() -> shooter.decreaseShootRPM());
-    private EdgeDetector hoodUpEdgeDetect = new EdgeDetector(() -> shooter.hoodUp());
-    private EdgeDetector hoodDownEdgeDetect = new EdgeDetector(() -> shooter.hoodDown());
-
-    // 1 = left (counterclockwise), -1 = right (clockwise), 0 = stopped. Only sent to the turret when it changes
-    private int turretDir = 0;
+    private final List<Supplier<Boolean>> suppliers;
+    private final List<Consumer<Boolean>> consumers;
 
     //---------------- Constructor ----------------
     public OuttakeControl(Outtake outtake, Gamepad gp1, Gamepad gp2){
-        this.outtake = outtake;
         this.shooter = outtake.shooter;
         this.turret = outtake.turret;
         this.lights = outtake.lights;
-        this.gp1 = gp1;
-        this.gp2 = gp2;
+
+        this.suppliers = new ArrayList<>();
+        this.consumers = new ArrayList<>();
+
+        connect(() -> gp1.x, shooter::toggleShooting);
+        connect(() -> gp1.dpad_right, shooter::increaseShootRPM);
+        connect(() -> gp1.dpad_left, shooter::decreaseShootRPM);
+        connect(() -> gp1.dpad_up, shooter::hoodUp);
+        connect(() -> gp1.dpad_down, shooter::hoodDown);
+
+        // LBump held = left, RBump held = right, both or neither = stop
+        connect(() -> gp1.left_bumper && !gp1.right_bumper, turret::turnTurretLeft);
+        connect(() -> !gp1.left_bumper && gp1.right_bumper, turret::turnTurretRight);
+        connect(() -> gp1.left_bumper == gp1.right_bumper, turret::stopTurret);
+    }
+
+    private void connect(Supplier<Boolean> someGamePadControl, Runnable thingToDo) {
+        suppliers.add(someGamePadControl);
+        consumers.add(new EdgeDetector(thingToDo));
     }
 
     //---------------- Methods ----------------
-    private void updateShooter(){
-        toggleShooterEdgeDetect.update(gp1.x);
-        increaseRPMEdgeDetect.update(gp1.dpad_right);
-        decreaseRPMEdgeDetect.update(gp1.dpad_left);
-        hoodUpEdgeDetect.update(gp1.dpad_up);
-        hoodDownEdgeDetect.update(gp1.dpad_down);
-    }
-
-    // LBump held = left, RBump held = right, both or neither = stop
-    private void updateTurret(){
-        boolean left = gp1.left_bumper;
-        boolean right = gp1.right_bumper;
-        int dir = (left == right) ? 0 : (left ? 1 : -1);
-
-        if (dir != turretDir){
-            if (dir == 1) turret.turnTurretLeft();
-            else if (dir == -1) turret.turnTurretRight();
-            else turret.stopTurret();
-            turretDir = dir;
+    private void updateShooter() {
+        for (int i = 0; i < suppliers.size(); i++) {
+            Supplier<Boolean> oneSupplier = suppliers.get(i);
+            Consumer<Boolean> oneConsumer = consumers.get(i);
+            oneConsumer.accept(oneSupplier.get());
         }
     }
 
@@ -72,7 +70,6 @@ public class OuttakeControl implements Control {
     @Override
     public void update() {
         updateShooter();
-        updateTurret();
         updateLights();
     }
 
