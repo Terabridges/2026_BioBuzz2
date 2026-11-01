@@ -30,6 +30,5 @@ public final class PedroDrive implements Drive {
         ManualDrive.driveOrHold(follower, powers);
     }
 
-    public boolean isBusy() { return follower.following() && follower.isBusy(); }
     public Pose robotPose() { return follower.pose(); }
 }

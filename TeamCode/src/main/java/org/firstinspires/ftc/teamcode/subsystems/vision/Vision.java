@@ -31,18 +31,6 @@ public class Vision implements Subsystem {
     private boolean huskyLensReady;
     private HuskyLens.Block[] huskyLensTags = new HuskyLens.Block[0];
 
-    private final double LOOK_AHEAD_MS = 50; // Predict x ms into the future
-
-    private final double CAMERA_HEIGHT_INCHES = 6.9685;
-    private final double TARGET_HEIGHT_INCHES = 2.86; // Estimated height of the pollen object
-    private final double CAMERA_PITCH_DEGREES = 20; // Camera angled downwards x degrees
-    private final double CAMERA_FORWARD_OFFSET = 4.72441; // Distance from robot center to camera lens
-
-    private double smoothedVelocityX = 0;
-    private double smoothedVelocityY = 0;
-    private final double VELOCITY_SMOOTHING_FACTOR = 0.3; // Lower = smoother but more lag (0.0 to 1.0)
-    private long lastCaptureTime = 0;
-
     //--------Constructor--------
     private Vision(HardwareMap map) {
         limelight = map.get(Limelight3A.class, "limelight");

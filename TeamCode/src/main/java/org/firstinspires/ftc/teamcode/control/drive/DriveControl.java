@@ -23,8 +23,7 @@ public class DriveControl implements Control {
     private final boolean ratesEnabled;
     private boolean fieldCentric;
     private boolean slowMode;
-    private Rates moveRate, turnRate;
-    private double cachedMax, cachedMoveCenter, cachedMoveExpo, cachedTurnCenter, cachedTurnExpo, cachedDeadzone;
+    private final Rates moveRate, turnRate;
     private double forward, right, turn;
     private final EdgeDetector slowToggle = new EdgeDetector(this::toggleSlowMode);
     private final EdgeDetector fieldToggle = new EdgeDetector(this::toggleFieldCentric);
@@ -36,31 +35,16 @@ public class DriveControl implements Control {
         this.fieldCentric = fieldCentric;
         slowToggle.isPressed = gamepad.b;
         fieldToggle.isPressed = gamepad.back;
-        refreshRates();
-    }
-
-    private void refreshRates() {
-        if (moveRate != null && cachedMax == maxRate && cachedMoveCenter == moveCenterRate
-                && cachedMoveExpo == moveExpo && cachedTurnCenter == turnCenterRate
-                && cachedTurnExpo == turnExpo && cachedDeadzone == deadzone) return;
+        // Rate settings are captured when this control is created at OpMode Start.
         // Linear mode retains the same deadzone and maximum output, without curve shaping.
-        Rates nextMove = new Rates(ratesEnabled ? moveCenterRate : maxRate, maxRate,
+        moveRate = new Rates(ratesEnabled ? moveCenterRate : maxRate, maxRate,
                 ratesEnabled ? moveExpo : 0, deadzone);
-        Rates nextTurn = new Rates(ratesEnabled ? turnCenterRate : maxRate, maxRate,
+        turnRate = new Rates(ratesEnabled ? turnCenterRate : maxRate, maxRate,
                 ratesEnabled ? turnExpo : 0, deadzone);
-        moveRate = nextMove;
-        turnRate = nextTurn;
-        cachedMax = maxRate;
-        cachedMoveCenter = moveCenterRate;
-        cachedMoveExpo = moveExpo;
-        cachedTurnCenter = turnCenterRate;
-        cachedTurnExpo = turnExpo;
-        cachedDeadzone = deadzone;
     }
 
     @Override public void update() {
         updateButtons();
-        refreshRates();
         double scale = slowMode ? 0.5 : 1;
         forward = moveRate.apply(-gamepad.left_stick_y) * scale;
         right = moveRate.apply(gamepad.left_stick_x) * scale;

@@ -1,19 +1,15 @@
 package org.firstinspires.ftc.teamcode.opmodes.tests;
 
-import com.pedropathing.api.Paths;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
-import com.pedropathing.paths.Path;
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.Gamepad;
 import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.drive.PredictiveDriveControl;
+import org.firstinspires.ftc.teamcode.control.drive.DriveHoldTestControl;
 import org.firstinspires.ftc.teamcode.subsystems.drive.PedroDrive;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
@@ -27,48 +23,33 @@ import java.util.Arrays;
 import java.util.List;
 
 @PsiKitAutoLog(rlogPort = 5802)
-@TeleOp
-public class IntakePlusPredictiveTrackingTeleop extends OpMode {
-    GoBildaPinpointDriver pinpoint;
+@TeleOp(name = "Intake Drive Hold Test", group = "Tests")
+public class IntakeDriveHoldTest extends OpMode {
     Follower follower;
     FollowerManager followerManager;
     Robot robot;
     private JoinedTelemetry joinedTelemetry;
 
-    Gamepad currentGamepad1;
-    Gamepad previousGamepad1;
-
-    Gamepad currentGamepad2;
-    Gamepad previousGamepad2;
     VisionControl visionControl;
     IntakeControl intakeControl;
-    PredictiveDriveControl driveControl;
+    DriveHoldTestControl driveControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
 
     @Override
     public void init() {
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-
-
         followerManager = FollowerManager.forTeleOp(hardwareMap);
         follower = followerManager.follower();
         robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
-        driveControl = new PredictiveDriveControl(new PedroDrive(follower), gamepad1, gamepad2);
+        driveControl = new DriveHoldTestControl(new PedroDrive(follower), gamepad1);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
         if (!followerManager.resumedFromAuto()) {
             follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
         }
-
-        currentGamepad1 = new Gamepad();
-        previousGamepad1 = new Gamepad();
-
-        currentGamepad2 = new Gamepad();
-        previousGamepad2 = new Gamepad();
 
         joinedTelemetry = new JoinedTelemetry(
                 PanelsTelemetry.INSTANCE.getFtcTelemetry(),
@@ -79,8 +60,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     @Override
     public void init_loop() {
-        previousGamepad1.copy(currentGamepad1);
-        currentGamepad1.copy(gamepad1);
         followerManager.update();
         telemetry.addData("Localization", followerManager.resumedFromAuto() ? "From autonomous" : "Fresh follower");
         telemetry.update();
@@ -95,7 +74,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     @Override
     public void loop() {
-        gamepadUpdate();
         controlsUpdate();
         robot.update();
 
@@ -112,12 +90,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         } finally {
             if (followerManager != null) followerManager.stop();
         }
-    }
-
-    public void driveToLocationAuto(Pose targetPose) {
-        Pose currentPose = follower.pose();
-        Path dynamicLine = Paths.line(currentPose, targetPose).linear(currentPose, targetPose);
-        follower.follow(dynamicLine);
     }
 
     public void logPsiKitData() {
@@ -138,14 +110,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             joinedTelemetry.update();
             telemetryTimer.reset();
         }
-    }
-
-    public void gamepadUpdate(){
-        previousGamepad1.copy(currentGamepad1);
-        currentGamepad1.copy(gamepad1);
-
-        previousGamepad2.copy(currentGamepad2);
-        currentGamepad2.copy(gamepad2);
     }
 
 }
