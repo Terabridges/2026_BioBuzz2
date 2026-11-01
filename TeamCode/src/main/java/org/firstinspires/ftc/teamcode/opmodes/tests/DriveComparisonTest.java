@@ -30,8 +30,8 @@ public class DriveComparisonTest extends OpMode {
 
         ComparisonDriveControl(Drive drive, Gamepad gamepad, boolean rates, boolean field) {
             super(drive, gamepad, rates, field);
-            fieldToggle.isPressed = gamepad.back;
-            slowToggle.isPressed = gamepad.b;
+            fieldToggle.wasPressed = gamepad.back;
+            slowToggle.wasPressed = gamepad.b;
         }
 
         @Override protected void updateButtons() {

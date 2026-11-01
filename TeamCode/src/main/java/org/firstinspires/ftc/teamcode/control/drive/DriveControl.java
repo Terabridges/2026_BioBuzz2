@@ -33,8 +33,8 @@ public class DriveControl implements Control {
         this.gamepad = gamepad;
         this.ratesEnabled = ratesEnabled;
         this.fieldCentric = fieldCentric;
-        slowToggle.isPressed = gamepad.b;
-        fieldToggle.isPressed = gamepad.back;
+        slowToggle.wasPressed = gamepad.b;
+        fieldToggle.wasPressed = gamepad.back;
         // Rate settings are captured when this control is created at OpMode Start.
         // Linear mode retains the same deadzone and maximum output, without curve shaping.
         moveRate = new Rates(ratesEnabled ? moveCenterRate : maxRate, maxRate,
