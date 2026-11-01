@@ -18,7 +18,6 @@
             <goBILDA5201SeriesMotor name="front_right" port="0" />
             <goBILDA5201SeriesMotor name="back_right" port="1" />
             <goBILDA5201SeriesMotor name="spinner" port="2" />
-            <goBILDA5201SeriesMotor name="flywheel_right" port="3" />
             <Servo name="ramp_left" port="0" />
             <Servo name="ramp_right" port="1" />
             <Servo name="turret_left" port="2" />

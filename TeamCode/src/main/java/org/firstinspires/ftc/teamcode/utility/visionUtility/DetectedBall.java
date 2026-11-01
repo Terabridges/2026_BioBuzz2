@@ -46,7 +46,7 @@ public class DetectedBall {
             targetX /= w;
             targetY /= w;
         }
-        
+
         return new double[]{ targetX, targetY };
     }
 

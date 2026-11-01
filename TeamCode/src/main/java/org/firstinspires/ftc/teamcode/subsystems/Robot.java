@@ -1,59 +1,30 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
-import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
-import org.firstinspires.ftc.teamcode.subsystems.drive.Drive;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/** Mechanism hardware and lifecycle. The OpMode owns its drivetrain separately. */
 public class Robot {
-
-    //---------------- Objects ----------------
-    private final HardwareMap hardwareMap;
-    FollowerManager followerManager;
-    private final Telemetry telemetry;
-    private Gamepad gp1;
-    private Gamepad gp2;
-    private static VoltageSensor voltageSensor;
 
     //---------------- Subsystems ----------------
     public Intake intake;
     public Outtake outtake;
     public Vision vision;
-    public Drive drive;
-    private List<Subsystem> subsystems;
+    private final List<Subsystem> subsystems;
 
     //---------------- Constructors ----------------
-    public Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gp1, Gamepad gp2) {
-        this.hardwareMap = hardwareMap;
-        this.telemetry = telemetry;
-
+    public Robot(HardwareMap hardwareMap, Telemetry telemetry) {
         intake = new Intake(hardwareMap);
         outtake = new Outtake(hardwareMap);
         vision = Vision.getInstance(hardwareMap);
-        drive = new Drive(hardwareMap);
-
-
-
-        subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision, drive));
-
-        this.gp1 = gp1;
-        this.gp2 = gp2;
-
-        voltageSensor = hardwareMap.voltageSensor.iterator().next();
-    }
-
-    public Robot(HardwareMap hardwareMap, Telemetry telemetry) {
-        this(hardwareMap, telemetry, null, null);
+        subsystems = Arrays.asList(intake, outtake, vision);
     }
 
     //---------------- Interface Methods ----------------

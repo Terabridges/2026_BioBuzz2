@@ -1,26 +1,21 @@
 package org.firstinspires.ftc.teamcode.opmodes.tests;
 
-import com.pedropathing.api.Paths;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
-import com.pedropathing.paths.Path;
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.Gamepad;
 import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.control.drive.Drive2_0Control;
+import org.firstinspires.ftc.teamcode.control.drive.DriveHoldTestControl;
+import org.firstinspires.ftc.teamcode.subsystems.drive.PedroDrive;
 import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
-import org.firstinspires.ftc.teamcode.subsystems.drive.Drive2_0;
 import org.firstinspires.ftc.teamcode.utility.driveUtility.PoseLogging;
-import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 import java.util.ArrayList;
@@ -28,48 +23,33 @@ import java.util.Arrays;
 import java.util.List;
 
 @PsiKitAutoLog(rlogPort = 5802)
-@TeleOp
-public class IntakePlusPredictiveTrackingTeleop extends OpMode {
-    GoBildaPinpointDriver pinpoint;
+@TeleOp(name = "Intake Drive Hold Test", group = "Tests")
+public class IntakeDriveHoldTest extends OpMode {
     Follower follower;
+    FollowerManager followerManager;
     Robot robot;
-    Drive2_0 drive20;
     private JoinedTelemetry joinedTelemetry;
 
-    Gamepad currentGamepad1;
-    Gamepad previousGamepad1;
-
-    Gamepad currentGamepad2;
-    Gamepad previousGamepad2;
     VisionControl visionControl;
     IntakeControl intakeControl;
-    Drive2_0Control driveControl;
+    DriveHoldTestControl driveControl;
     List<Control> controls;
 
     public ElapsedTime telemetryTimer;
 
     @Override
     public void init() {
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-
-
-        robot = new Robot(hardwareMap, telemetry, gamepad1, gamepad2);
+        followerManager = FollowerManager.forTeleOp(hardwareMap);
+        follower = followerManager.follower();
+        robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
-        // Robot only runs Drive 1, so this test drives with its own Drive 2.0 and keeps Drive 1 off the motors
-        robot.drive.manualDrive = false;
-        drive20 = new Drive2_0(hardwareMap);
-        driveControl = new Drive2_0Control(drive20, gamepad1, gamepad2);
+        driveControl = new DriveHoldTestControl(new PedroDrive(follower), gamepad1);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
-        follower = FollowerManager.forTeleOp(hardwareMap).follower();
-        follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
-
-        currentGamepad1 = new Gamepad();
-        previousGamepad1 = new Gamepad();
-
-        currentGamepad2 = new Gamepad();
-        previousGamepad2 = new Gamepad();
+        if (!followerManager.resumedFromAuto()) {
+            follower.setPose(new Pose(8.262, 8.309, Math.toRadians(90)));
+        }
 
         joinedTelemetry = new JoinedTelemetry(
                 PanelsTelemetry.INSTANCE.getFtcTelemetry(),
@@ -80,24 +60,24 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     @Override
     public void init_loop() {
-        previousGamepad1.copy(currentGamepad1);
-        currentGamepad1.copy(gamepad1);
+        followerManager.update();
+        telemetry.addData("Localization", followerManager.resumedFromAuto() ? "From autonomous" : "Fresh follower");
         telemetry.update();
     }
 
     @Override
     public void start() {
         robot.toInit();
+        followerManager.startManual();
         telemetryTimer.reset();
     }
 
     @Override
     public void loop() {
-        gamepadUpdate();
         controlsUpdate();
         robot.update();
-        drive20.update();
 
+        followerManager.update();
         controlsTelemetryUpdate();
         logPsiKitData();
         robot.logPsiKitData();
@@ -105,14 +85,11 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
 
     @Override
     public void stop() {
-        robot.stop();
-        drive20.stop();
-    }
-
-    public void driveToLocationAuto(Pose targetPose) {
-        Pose currentPose = follower.pose();
-        Path dynamicLine = Paths.line(currentPose, targetPose).linear(currentPose, targetPose);
-        follower.follow(dynamicLine);
+        try {
+            if (robot != null) robot.stop();
+        } finally {
+            if (followerManager != null) followerManager.stop();
+        }
     }
 
     public void logPsiKitData() {
@@ -133,14 +110,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             joinedTelemetry.update();
             telemetryTimer.reset();
         }
-    }
-
-    public void gamepadUpdate(){
-        previousGamepad1.copy(currentGamepad1);
-        currentGamepad1.copy(gamepad1);
-
-        previousGamepad2.copy(currentGamepad2);
-        currentGamepad2.copy(gamepad2);
     }
 
 }
