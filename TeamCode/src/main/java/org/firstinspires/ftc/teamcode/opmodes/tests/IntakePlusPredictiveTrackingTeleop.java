@@ -20,7 +20,6 @@ import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.utility.driveUtility.PoseLogging;
-import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 import java.util.ArrayList;
@@ -100,14 +99,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
         controlsUpdate();
         robot.update();
 
-        // Gamepad 1 Y belongs to the blocker; this test's intercept command uses gamepad 2.
-        if ((gamepad2.y && !previousGamepad2.y) && (robot.vision.hasTarget())) {
-            Pose targetPose = robot.vision.getPredictiveInterceptPose(follower.pose());
-            if (targetPose != null) {
-                driveToLocationAuto(targetPose);
-            }
-        }
-
         followerManager.update();
         controlsTelemetryUpdate();
         logPsiKitData();
@@ -130,7 +121,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
     }
 
     public void logPsiKitData() {
-        Logger.recordOutput("TargetPose", PoseLogging.toPose2dFromPedroInchesAsFtcCenterRotatedWithoutHeading(robot.vision.getPredictiveInterceptPose(follower.pose())));
         PoseLogging.logMainPoseDetails(robot, follower);
     }
 
@@ -145,7 +135,6 @@ public class IntakePlusPredictiveTrackingTeleop extends OpMode {
             for (Control c : controls) {
                 c.addTelemetry(joinedTelemetry);
             }
-            joinedTelemetry.addData("TargetPose:", robot.vision.getPredictiveInterceptPose(follower.pose()));
             joinedTelemetry.update();
             telemetryTimer.reset();
         }

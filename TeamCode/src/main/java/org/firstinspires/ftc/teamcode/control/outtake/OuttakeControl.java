@@ -9,6 +9,8 @@ import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Turret;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
+import org.psilynx.psikit.core.Logger;
+
 
 public class OuttakeControl implements Control {
 
@@ -82,5 +84,8 @@ public class OuttakeControl implements Control {
         telemetry.addData("Shooter Current RPM", shooter.getCurrentRPM());
         telemetry.addData("Hood Pos", shooter.getHoodPos());
         telemetry.addData("Turret Pos", turret.getTurretPos());
+        Logger.recordOutput("Shooter Target RPM", shooter.getTargetRPM());
+        Logger.recordOutput("Shooter Current RPM", shooter.getCurrentRPM());
+        Logger.recordOutput("Raw Flywheel Vel", shooter.getFlywheelVel());
     }
 }
