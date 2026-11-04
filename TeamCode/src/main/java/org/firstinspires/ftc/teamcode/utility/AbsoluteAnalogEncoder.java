@@ -9,6 +9,7 @@ public class AbsoluteAnalogEncoder {
     private double offset;
     private final double analogRange;
     private boolean inverted;
+    private double pastPosition = 1;
 
     public AbsoluteAnalogEncoder(AnalogInput enc){this(enc, DEFAULT_RANGE);}
     public AbsoluteAnalogEncoder(AnalogInput enc, double aRange){this(enc,aRange, 0, 1.0);}
@@ -31,14 +32,15 @@ public class AbsoluteAnalogEncoder {
         return inverted;
     }
 
-    private double pastPosition = 1;
     public double getCurrentPosition() {
         double pos = ((!inverted ? 1 - getVoltage() / analogRange : getVoltage() / analogRange) * 360) - offset; //Degreez
         pos = (pos % 360 + 360) % 360;
         pastPosition = pos * gearRatio;
         return pastPosition;
     }
-
+    public double getNormalizedPosition() {
+        return getCurrentPosition() / 360.0;
+    }
     public AnalogInput getEncoder() {
         return encoder;
     }

@@ -11,6 +11,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.firstinspires.ftc.teamcode.utility.Utility;
 
+import java.util.Arrays;
+
 @Configurable
 public class Shooter implements Subsystem {
 
@@ -52,6 +54,13 @@ public class Shooter implements Subsystem {
     private double hoodOffset = 0;
 
     private double newRPM = flywheelTargetRPM + flywheelOffset;
+
+    public static boolean enableFiltering = true;
+    public static double emaAlpha = 0.25; // 0.1 (heavy smooth) to 0.5 (fast response)
+
+    private final double[] medianWindow = new double[3]; // 3-point window for spike rejection
+    private double emaFilteredRPM = 0.0;
+    private boolean filterInitialized = false;
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {

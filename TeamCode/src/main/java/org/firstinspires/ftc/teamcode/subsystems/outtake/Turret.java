@@ -24,7 +24,7 @@ public class Turret implements Subsystem {
     private boolean negativeOffset;
     private final double turretPwmMinUs = 500; // are these the right limits?
     private final double turretPwmMaxUs = 2500;
-    //TODO find turret limits
+
     private final double turretMinPos = 0;
     private final double turretMaxPos = 1;
     private final double turretStartPos = 0.5;
@@ -52,7 +52,7 @@ public class Turret implements Subsystem {
     }
 
     //---------------- Core Methods ----------------
-    private double clampTurret(double pos){
+    private double clampTurret(double pos){//         0.127 + 0.008  == 0.135                                          0.882
         return util.clamp(pos, (negativeOffset ? turretMinPos-rightTurretOffset : turretMinPos), (negativeOffset ? turretMaxPos : turretMaxPos-rightTurretOffset));
     }
 
@@ -118,7 +118,8 @@ public class Turret implements Subsystem {
 
     @Override
     public void init(){
-        setTurret(turretStartPos);
+        turretCurrentPos = turretEnc.getNormalizedPosition();
+        moveTurret(turretStartPos);
         loopTimer.reset();
     }
 
@@ -134,5 +135,4 @@ public class Turret implements Subsystem {
             writeTurret(Math.abs(error) <= maxStep ? turretTargetPos : turretCurrentPos + Math.signum(error) * maxStep);
         }
     }
-
 }

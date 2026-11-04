@@ -11,8 +11,11 @@ import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.psilynx.psikit.core.AutoLog;
+import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 @TeleOp(name = "MainTeleOp", group = "Main")
+@PsiKitAutoLog(rlogPort = 5802)
 public class MainTeleOp extends OpMode {
     // MainTeleOp drive configuration.
     private static final DriveManager.Backend DRIVE_BACKEND = DriveManager.Backend.PEDRO;
