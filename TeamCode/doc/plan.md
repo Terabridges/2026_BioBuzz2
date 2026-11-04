@@ -1,0 +1,4 @@
+-Transfer only runs at 30% when not shooting  
+-transfer only pushes last ball (the one about to be shot)  
+-when last sensor is not triggered, run both intake and transfer at 30%  
+-so when last sensor is triggered, stop running transfer until shot

@@ -22,14 +22,23 @@ public class Turret implements Subsystem {
     //---------------- Software ----------------
     private final double rightTurretOffset = -0.008;
     private boolean negativeOffset;
+
     private final double turretPwmMinUs = 500; // are these the right limits?
     private final double turretPwmMaxUs = 2500;
 
     private final double turretMinPos = 0;
     private final double turretMaxPos = 1;
+
     private final double turretStartPos = 0.5;
+
+    // 0-1 is one full turn of the servo (360 deg), which turns the turret 480 deg through the 3:4 gears.
+    // The servo takes the shortest way to a new position, so if the command gets half a turn (0.5)
+    // ahead of where the servo really is, it goes the wrong way, across 0/1. Every move is stepped at
+    // a velocity to keep the command just ahead of the servo
+    // TODO measure how fast the turret really turns: no velocity here may be faster than that
     private final double turretDefaultVel = 0.5; // servo units per second, 0.5 = full travel in 2 sec
     // TODO verify that positive velocity is counterclockwise, flip the sign if the turret goes the wrong way
+
     private final double turretManualVel = 0.3; // positive = counterclockwise (left)
 
     private final ElapsedTime loopTimer = new ElapsedTime();
@@ -52,7 +61,7 @@ public class Turret implements Subsystem {
     }
 
     //---------------- Core Methods ----------------
-    private double clampTurret(double pos){//         0.127 + 0.008  == 0.135                                          0.882
+    private double clampTurret(double pos){
         return util.clamp(pos, (negativeOffset ? turretMinPos-rightTurretOffset : turretMinPos), (negativeOffset ? turretMaxPos : turretMaxPos-rightTurretOffset));
     }
 
@@ -60,12 +69,6 @@ public class Turret implements Subsystem {
         turretCurrentPos = clampTurret(pos);
         turretLeft.setPosition(turretCurrentPos);
         turretRight.setPosition(turretCurrentPos+rightTurretOffset);
-    }
-
-    // Moves instantly, and cancels any move in progress
-    public void setTurret(double pos){
-        turretTargetPos = clampTurret(pos);
-        writeTurret(turretTargetPos);
     }
 
     //---------------- Methods ----------------
@@ -118,8 +121,10 @@ public class Turret implements Subsystem {
 
     @Override
     public void init(){
-        turretCurrentPos = turretEnc.getNormalizedPosition();
-        moveTurret(turretStartPos);
+        // The one direct write: the code can't know where the turret really is at startup, so it
+        // assumes the start position. If the turret was left near either end this can still wrap
+        turretTargetPos = turretStartPos;
+        writeTurret(turretStartPos);
         loopTimer.reset();
     }
 
@@ -135,4 +140,5 @@ public class Turret implements Subsystem {
             writeTurret(Math.abs(error) <= maxStep ? turretTargetPos : turretCurrentPos + Math.signum(error) * maxStep);
         }
     }
+
 }
