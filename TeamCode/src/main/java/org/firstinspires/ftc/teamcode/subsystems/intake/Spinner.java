@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
+import org.firstinspires.ftc.teamcode.utility.intakeUtility.RealTimeBallFilter;
 
 public class Spinner implements Subsystem {
 
@@ -20,17 +21,12 @@ public class Spinner implements Subsystem {
 
     //---------------- Software ----------------
     private int ballCount = 0;
-    private boolean lastSensor1Broken = false;
-    private boolean lastSensor4Broken = false;
     private double spinnerPow = 0.0;
 
     // Timing & Filtering
     private final ElapsedTime sensor1Timer = new ElapsedTime();
     private final ElapsedTime sensor4Timer = new ElapsedTime();
     private final ElapsedTime sensor1HoldTimer = new ElapsedTime();
-
-    private static final double COOLDOWN_SEC = 0.15; // Ignore flickers for 150ms after an edge
-    private static final double MULTI_BALL_HOLD_SEC = 0.35; // If broken > 350ms while intaking, count 2nd ball
 
     //---------------- Constructor ----------------
     public Spinner(HardwareMap map) {
@@ -73,77 +69,58 @@ public class Spinner implements Subsystem {
     public boolean isFull() { return ballCount >= 4; }
 
     public void initBallCount() {
-        lastSensor1Broken = isSensor1Broken();
-        lastSensor4Broken = isSensor4Broken();
         sensor1Timer.reset();
         sensor4Timer.reset();
         sensor1HoldTimer.reset();
     }
 
+    private final RealTimeBallFilter ballFilter = new RealTimeBallFilter();
     public void updateBallCount() {
-        boolean current1Broken = isSensor1Broken();
-        boolean current2Broken = isSensor2Broken();
-        boolean current3Broken = isSensor3Broken();
-        boolean current4Broken = isSensor4Broken();
+        boolean[] sensors = {
+                isSensor1Broken(),
+                isSensor2Broken(),
+                isSensor3Broken(),
+                isSensor4Broken()
+        };
 
-        // --- HARDWARE SANITY CHECKS ---
-        // 1. ALL CLEAR: Force count to 0 if no sensors are detecting a ball
-        if (!current1Broken && !current2Broken && !current3Broken && !current4Broken) {
-            ballCount = 0;
-            lastSensor1Broken = false;
-            lastSensor4Broken = false;
-            return;
-        }
+        int rawCount = 0;
+        int clusterSize = 0;
 
-        // 2. ALL FULL: Force count to 4 if all sensors are blocked
-        if (current1Broken && current2Broken && current3Broken && current4Broken) {
-            ballCount = 4;
-        }
-
-        // --- INTAKE ENTRY (Sensor 1) ---
-        if (current1Broken && !lastSensor1Broken) {
-            sensor1HoldTimer.reset(); // Reset hold timer when beam first breaks
-            if (spinnerPow > 0 && sensor1Timer.seconds() > COOLDOWN_SEC) {
-                ballCount = Math.min(4, ballCount + 1);
-                sensor1Timer.reset();
+        for (boolean b : sensors) {
+            if (b) {
+                clusterSize++;
+            } else {
+                if (clusterSize > 0) {
+                    if (spinnerPow == 0) {
+                        rawCount += clusterSize;
+                    } else {
+                        // Apply overlap protection strictly to 2-sensor clusters (1 ball straddling)
+                        if (clusterSize == 2) {
+                            rawCount += 1;
+                        } else {
+                            // 1 sensor = 1 ball. 3 sensors = 3 balls.
+                            rawCount += clusterSize;
+                        }
+                    }
+                    clusterSize = 0;
+                }
             }
         }
 
-        // Catch continuous touching balls (Sensor 1 stays broken while intaking)
-        if (current1Broken && spinnerPow > 0 && sensor1HoldTimer.seconds() > MULTI_BALL_HOLD_SEC) {
-            if (sensor1Timer.seconds() > COOLDOWN_SEC) {
-                ballCount = Math.min(4, ballCount + 1);
-                sensor1Timer.reset();
-                sensor1HoldTimer.reset(); // Reset to catch a 3rd touching ball if needed
+        // Evaluate the final cluster at the end of the array
+        if (clusterSize > 0) {
+            if (spinnerPow == 0) {
+                rawCount += clusterSize;
+            } else {
+                if (clusterSize == 2) {
+                    rawCount += 1;
+                } else {
+                    rawCount += clusterSize;
+                }
             }
         }
 
-        // --- OUTTAKE EXIT (Sensor 4) ---
-        if (!current4Broken && lastSensor4Broken && spinnerPow > 0) {
-            if (sensor4Timer.seconds() > COOLDOWN_SEC) {
-                ballCount = Math.max(0, ballCount - 1);
-                sensor4Timer.reset();
-            }
-        }
-
-        // --- EJECT FRONT (Sensor 1) ---
-        if (!current1Broken && lastSensor1Broken && spinnerPow <= 0) {
-            if (sensor1Timer.seconds() > COOLDOWN_SEC) {
-                ballCount = Math.max(0, ballCount - 1);
-                sensor1Timer.reset();
-            }
-        }
-
-        // --- RE-ENTRY FROM OUTTAKE (Sensor 4) ---
-        if (current4Broken && !lastSensor4Broken && spinnerPow < 0) {
-            if (sensor4Timer.seconds() > COOLDOWN_SEC) {
-                ballCount = Math.min(4, ballCount + 1);
-                sensor4Timer.reset();
-            }
-        }
-
-        lastSensor1Broken = current1Broken;
-        lastSensor4Broken = current4Broken;
+        ballCount = ballFilter.update(rawCount);
     }
 
     //---------------- Interface Methods ----------------

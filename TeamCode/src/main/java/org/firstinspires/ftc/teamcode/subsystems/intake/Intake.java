@@ -26,8 +26,28 @@ public class Intake implements Subsystem {
 
     //---------------- Methods ----------------
     public void intakeIn(){
-        spinner.setSpinnerSpinIn();
-        transfer.setTransferIn();
+        if (spinner.getBallCount() == 0) {
+            spinner.setSpinnerSpinIn(1.0);
+            transfer.setTransferIn(0.3);
+        } else if (spinner.getBallCount() == 1) {
+            spinner.setSpinnerSpinIn(1.0);
+            if (spinner.isSensor4Broken()) {
+                transfer.setTransferZero();
+            } else {
+                transfer.setTransferIn(0.3);
+            }
+        } else if (spinner.getBallCount() == 2 || spinner.getBallCount() == 3) {
+            spinner.setSpinnerSpinIn(1.0);
+            transfer.setTransferZero();
+        } else if (spinner.isFull()) {
+            transfer.setTransferZero();
+            spinner.setSpinnerSpinZero();
+        }
+
+        if (transfer.isBlockerOpen()) {
+            spinner.setSpinnerSpinIn();
+            transfer.setTransferIn();
+        }
     }
 
     public void intakeOut(){

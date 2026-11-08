@@ -12,6 +12,8 @@ import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.psilynx.psikit.core.AutoLog;
+import org.psilynx.psikit.core.Logger;
+import org.psilynx.psikit.core.rlog.RLOGServer;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
 @TeleOp(name = "MainTeleOp", group = "Main")
@@ -33,6 +35,7 @@ public class MainTeleOp extends OpMode {
     private double maxDriveMs;
 
     @Override public void init() {
+//        Logger.addDataReceiver(new RLOGServer(5802));
         drive = new DriveManager(DRIVE_BACKEND);
         robot = new Robot(hardwareMap, telemetry);
         mechanismControls = new Control[]{
@@ -54,6 +57,7 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void start() {
+//        Logger.start();
         try {
             robot.toInit();
             drive.start(hardwareMap, true);
@@ -69,6 +73,12 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void loop() {
+//        double periodicBeforeStart = Logger.getRealTimestamp();
+//        Logger.periodicBeforeUser();
+//
+//        double periodicBeforeLength = Logger.getRealTimestamp() - periodicBeforeStart;
+//        double userCodeStart = Logger.getRealTimestamp();
+
         long now = System.nanoTime();
         double loopMs = (now - lastLoop) / 1e6;
         lastLoop = now;
@@ -100,9 +110,13 @@ public class MainTeleOp extends OpMode {
             stop();
             throw failure;
         }
+
+//        double userCodeLength = Logger.getRealTimestamp() - userCodeStart;
+//        Logger.periodicAfterUser(userCodeLength, periodicBeforeLength);
     }
 
     @Override public void stop() {
+//        Logger.end();
         try {
             if (robot != null) robot.stop();
         } finally {

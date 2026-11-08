@@ -1,38 +1,22 @@
 apply plugin: 'com.android.application'
 
-//
-// build.gradle in TeamCode
-//
-// Most of the definitions for building your module reside in a common, shared
-// file 'build.common.gradle'. Being factored in this way makes it easier to
-// integrate updates to the FTC into your code. If you really need to customize
-// the build definitions, you can place those customizations in this file, but
-// please think carefully as to whether such customizations are really necessary
-// before doing so.
-
-// Custom definitions may go here
 buildscript {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url "https://repo.dairy.foundation/releases"
-        }
+        maven { url "https://repo.dairy.foundation/releases" }
     }
     dependencies {
         classpath "dev.frozenmilk:Load:0.3.2"
     }
 }
-// Include common definitions from above.
+
 apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
 apply plugin: 'dev.frozenmilk.sinister.sloth.load'
 
-def robotConfigXmlFiles = [
-    'ivy_config.xml'
-]
+def robotConfigXmlFiles = ['ivy_config.xml']
 
-// Gradle 9 removed Project.exec(); run external commands through the injected ExecOperations service.
 interface InjectedExecOps {
     @javax.inject.Inject
     org.gradle.process.ExecOperations getExecOps()
@@ -41,25 +25,16 @@ interface InjectedExecOps {
 tasks.register('pushRobotConfigXml') {
     group = 'install'
     description = 'Push TeamCode robot configuration XML files to /sdcard/FIRST on the connected Control Hub.'
-
     def execOps = project.objects.newInstance(InjectedExecOps).execOps
-
     doLast {
         def adbName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'adb.exe' : 'adb'
         def adb = new File(android.sdkDirectory, "platform-tools/${adbName}")
-        if (!adb.isFile()) {
-            throw new GradleException("Android platform-tools adb not found: ${adb}")
-        }
-
+        if (!adb.isFile()) throw new GradleException("Android platform-tools adb not found: ${adb}")
         def xmlDir = project.file('src/main/res/xml')
         robotConfigXmlFiles.each { fileName ->
             def sourceFile = new File(xmlDir, fileName)
-            if (!sourceFile.isFile()) {
-                throw new GradleException("Robot configuration XML not found: ${sourceFile}")
-            }
-            execOps.exec {
-                commandLine adb.absolutePath, 'push', sourceFile.absolutePath, '/sdcard/FIRST/'
-            }
+            if (!sourceFile.isFile()) throw new GradleException("Robot configuration XML not found: ${sourceFile}")
+            execOps.exec { commandLine adb.absolutePath, 'push', sourceFile.absolutePath, '/sdcard/FIRST/' }
         }
     }
 }
@@ -70,38 +45,24 @@ tasks.named('deploySloth') {
 
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
-
-    packagingOptions {
-        jniLibs.useLegacyPackaging true
-    }
-
-    testOptions {
-        unitTests {
-            // Stub out android.* calls (e.g. android.util.Log) instead of throwing
-            // "not mocked". Pure classes like Rates don't need this, but anything
-            // that touches an SDK type will.
-            returnDefaultValues = true
-        }
-    }
+    packagingOptions { jniLibs.useLegacyPackaging true }
+    testOptions { unitTests { returnDefaultValues = true } }
 }
 
 repositories {
-    // IMPORTANT
     maven { url 'https://repo.dairy.foundation/releases' }
-    // IMPORTANT (thanks to dairy for hosting!)
 }
 
 dependencies {
     implementation project(':FtcRobotController')
-    implementation("com.bylazar.sloth:fullpanels:0.3.2+1.0.13")
-    implementation 'org.psilynx.psikit:core:0.2.0'
-    implementation 'org.psilynx.psikit:ftc:0.2.0'
 
-    // Local JVM unit tests (src/test/java). Run with:
-    //     ./gradlew :TeamCode:testDebugUnitTest
-    testImplementation 'junit:junit:4.13.2'
+    // Your original Sloth & Panels
     implementation("dev.frozenmilk.sinister:Sloth:0.3.2")
+    implementation("com.bylazar.sloth:fullpanels:0.3.2+1.0.13")
+
+    // Your original PsiKit
     implementation 'org.psilynx.psikit:core:0.2.0'
     implementation 'org.psilynx.psikit:ftc:0.2.0'
-}
 
+    testImplementation 'junit:junit:4.13.2'
+}
