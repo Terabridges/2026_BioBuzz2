@@ -16,7 +16,7 @@ import org.firstinspires.ftc.teamcode.subsystems.Robot;
  * Common FTC lifecycle: initialize hardware/follower, accept pre-start selection,
  * start a fresh routine, update it each loop, and stop on completion or Driver Station Stop.
  * Owns manager/Robot updates and status telemetry, not strategy-specific states or paths.
- * Robot receives the same follower; only FollowerManager updates it.
+ * Robot owns mechanisms; only FollowerManager updates the drivetrain follower.
  * A started competition auto offers its stopped follower to the next TeleOp.
  * Init-only runs, failed runs, and path tests never publish a handoff.
  * PATH_TEST initializes only the follower, excluding unrelated mechanism hardware.
@@ -39,7 +39,7 @@ public abstract class BaseAutoOpMode extends OpMode {
 
     /** Path-only diagnostics override this to avoid initializing unrelated hardware. */
     protected boolean usesRobot() { return executionMode() != AutoContext.Mode.PATH_TEST; }
-    protected Robot createRobot() { return new Robot(hardwareMap, telemetry, follower); }
+    protected Robot createRobot() { return new Robot(hardwareMap, telemetry); }
     protected Follower createFollower() { return Constants.create(hardwareMap); }
     protected void resetSelection() {}
     protected void updateSelection() {}
