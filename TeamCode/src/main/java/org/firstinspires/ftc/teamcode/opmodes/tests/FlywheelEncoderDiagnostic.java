@@ -12,45 +12,35 @@ public class FlywheelEncoderDiagnostic extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        DcMotorEx leftFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_left");
-        DcMotorEx rightFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_right");
+        // Same motor and direction as Shooter, so positive velocity here means positive RPM there
+        DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
 
-        leftFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightFlywheel.setDirection(DcMotorSimple.Direction.FORWARD);
-        leftFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rightFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        leftFlywheel.setPower(0.0);
-        rightFlywheel.setPower(0.0);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        flywheel.setPower(0.0);
 
-        telemetry.addLine("Hold LB to jog left motor; hold RB to jog right motor.");
-        telemetry.addLine("Use one bumper at a time. Test power is limited to 0.15.");
-        telemetry.addLine("Release both bumpers to stop.");
+        telemetry.addLine("Hold RB to jog the flywheel. Test power is limited to 0.15.");
+        telemetry.addLine("Release RB to stop.");
         telemetry.update();
 
         waitForStart();
 
         try {
             while (opModeIsActive()) {
-                boolean testLeft = gamepad1.left_bumper && !gamepad1.right_bumper;
-                boolean testRight = gamepad1.right_bumper && !gamepad1.left_bumper;
+                boolean testing = gamepad1.right_bumper;
 
-                leftFlywheel.setPower(testLeft ? TEST_POWER : 0.0);
-                rightFlywheel.setPower(testRight ? TEST_POWER : 0.0);
+                flywheel.setPower(testing ? TEST_POWER : 0.0);
 
-                telemetry.addData("Test", testLeft ? "LEFT" : testRight ? "RIGHT" : "STOPPED");
-                telemetry.addData("Left connection", leftFlywheel.getConnectionInfo());
-                telemetry.addData("Left position", leftFlywheel.getCurrentPosition());
-                telemetry.addData("Left velocity (ticks/sec)", "%.1f", leftFlywheel.getVelocity());
-                telemetry.addData("Right connection", rightFlywheel.getConnectionInfo());
-                telemetry.addData("Right position", rightFlywheel.getCurrentPosition());
-                telemetry.addData("Right velocity (ticks/sec)", "%.1f", rightFlywheel.getVelocity());
+                telemetry.addData("Test", testing ? "RUNNING" : "STOPPED");
+                telemetry.addData("Connection", flywheel.getConnectionInfo());
+                telemetry.addData("Position", flywheel.getCurrentPosition());
+                telemetry.addData("Velocity (ticks/sec)", "%.1f", flywheel.getVelocity());
                 telemetry.update();
 
                 idle();
             }
         } finally {
-            leftFlywheel.setPower(0.0);
-            rightFlywheel.setPower(0.0);
+            flywheel.setPower(0.0);
         }
     }
 }

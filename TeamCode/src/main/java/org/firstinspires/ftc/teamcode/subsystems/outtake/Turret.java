@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.firstinspires.ftc.teamcode.utility.AbsoluteAnalogEncoder;
 import org.firstinspires.ftc.teamcode.utility.Utility;
+import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 
 public class Turret implements Subsystem {
 
@@ -25,11 +26,13 @@ public class Turret implements Subsystem {
 
     private final double turretPwmMinUs = 500; // are these the right limits?
     private final double turretPwmMaxUs = 2500;
-
     private final double turretMinPos = 0;
     private final double turretMaxPos = 1;
-
     private final double turretStartPos = 0.5;
+
+    double dt;
+    double maxStep;
+    double error;
 
     // 0-1 is one full turn of the servo (360 deg), which turns the turret 480 deg through the 3:4 gears.
     // The servo takes the shortest way to a new position, so if the command gets half a turn (0.5)
@@ -40,6 +43,15 @@ public class Turret implements Subsystem {
     // TODO verify that positive velocity is counterclockwise, flip the sign if the turret goes the wrong way
 
     private final double turretManualVel = 0.3; // positive = counterclockwise (left)
+
+    // Aiming: degrees of turret over the full 0-1 servo range, and which way a higher position turns it
+    private final double turretRangeDeg = 480;
+    // Where the turret points at turretStartPos (0.5), from the robot's front: 180 = straight back
+    private final double turretStartAngleDeg = 180;
+    // TODO verify: +1 if a higher servo position turns the turret counterclockwise (left), -1 if clockwise
+    private final double turretDirection = 1;
+    // One full turret turn in servo units (0.75). Positions this far apart point the same way
+    private final double fullTurnPos = 360 / turretRangeDeg;
 
     private final ElapsedTime loopTimer = new ElapsedTime();
     private double turretCurrentPos = turretStartPos;
@@ -105,7 +117,35 @@ public class Turret implements Subsystem {
         setTurretVel(0);
     }
 
+    // Points the turret at an angle from the robot's front: radians, counterclockwise (left) positive.
+    // Call it every loop while tracking. The move is still rate-limited by update(), so it can't wrap
+    public void aimAt(double angleRad){
+        moveTurret(positionFor(angleRad, turretCurrentPos));
+    }
+
+    // The servo position that points the turret at angleRad (from the robot's front). 0.5 points straight
+    // back, so the angle is measured from there first. The range covers 480 deg, so within about 60 deg of
+    // straight forward there are two positions (a full turn apart) that point the same way: take the one
+    // closer to fromPos, so the turret doesn't swing all the way around when it doesn't have to
+    public double positionFor(double angleRad, double fromPos){
+        // Angle from the start direction (straight back), in -180..180
+        double fromStartDeg = Math.toDegrees(TurretAim.wrapAngle(angleRad - Math.toRadians(turretStartAngleDeg)));
+        double base = turretStartPos + turretDirection * fromStartDeg / turretRangeDeg;
+
+
+        //Hey Mike if you are reading this I need help understanding this part...
+        double best = Double.NaN;
+        for (double pos : new double[]{base - fullTurnPos, base, base + fullTurnPos}) {
+            if (clampTurret(pos) != pos) continue; // out of range
+            if (Double.isNaN(best) || Math.abs(pos - fromPos) < Math.abs(best - fromPos)) best = pos;
+        }
+        // The usable range is wider than a full turn, so one always fits. Clamp just in case it doesn't
+        return Double.isNaN(best) ? clampTurret(base) : best;
+    }
+
     public double getTurretPos(){return turretCurrentPos;}
+
+    public double getTurretTargetPos(){return turretTargetPos;}
 
     public boolean isTurretAtTarget(){
         return turretCurrentPos == turretTargetPos;
@@ -130,12 +170,13 @@ public class Turret implements Subsystem {
 
     @Override
     public void update(){
-        double dt = loopTimer.seconds();
+
+        dt = loopTimer.seconds();
         loopTimer.reset();
 
         if (!isTurretAtTarget()){
-            double maxStep = turretVel * dt;
-            double error = turretTargetPos - turretCurrentPos;
+            maxStep = turretVel * dt;
+            error = turretTargetPos - turretCurrentPos;
             // Snap to the target on the last step so isTurretAtTarget() becomes exactly true
             writeTurret(Math.abs(error) <= maxStep ? turretTargetPos : turretCurrentPos + Math.signum(error) * maxStep);
         }

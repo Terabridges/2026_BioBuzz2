@@ -38,7 +38,7 @@ public class Shooter implements Subsystem {
     private final double SHOOTER_GEAR_RATIO = 1.0;
     private PIDFController flywheelPID;
     public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.000213;
-    // Oct 25 f = 0.000213, p = , d = , i =
+    // Oct 25 (dev): f = 0.000213, tuned with both motors on one port. Was f = 0.00023 before
     //OLD: p = 0.0015, i = 0.0001, d = 0.0, f = 0.0002;
     //NEW: p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023
     //public static double integrationBounds = 250;
@@ -55,9 +55,13 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
+        // Two flywheel motors wired to the same port (Control Hub 3), so in code they're one motor. Only one
+        // encoder can plug into the port, so RPM comes from that motor. FORWARD (the user's call, same as dev).
+        // RUN_WITHOUT_ENCODER because the PIDF below controls speed, so the hub's own velocity loop
+        // shouldn't run on top of it (dev had RUN_USING_ENCODER)
         flywheel = map.get(DcMotorEx.class, "flywheel");
         flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
-        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         hood = map.get(Servo.class, "hood");
 

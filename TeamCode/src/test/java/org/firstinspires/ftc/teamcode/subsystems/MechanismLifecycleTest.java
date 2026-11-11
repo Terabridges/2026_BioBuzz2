@@ -96,6 +96,18 @@ public class MechanismLifecycleTest {
         assertEquals(0, powers.get("transfer"), 0);
     }
 
+    @Test public void outtakeStillStopsTurretWhenFlywheelMotorFails() {
+        Outtake outtake = new Outtake(map);
+        outtake.init();
+        outtake.shooter.setTargetRPM(2000);
+        outtake.turret.turnTurretLeft();
+        outtake.update();
+        failingMotor = "flywheel";
+        assertThrows(IllegalStateException.class, outtake::stop);
+        assertEquals(0, outtake.shooter.getTargetRPM(), 0);
+        assertTrue(outtake.turret.isTurretAtTarget());
+    }
+
     private void assertIntakeStopped() {
         assertEquals(0, powers.get("spinner"), 0);
         assertEquals(0, powers.get("transfer"), 0);

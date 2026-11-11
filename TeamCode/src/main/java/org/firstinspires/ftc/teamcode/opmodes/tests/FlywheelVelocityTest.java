@@ -14,69 +14,52 @@ public class FlywheelVelocityTest extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        DcMotorEx leftFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_left");
-        DcMotorEx rightFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel_right");
+        // Same motor and direction as Shooter, so positive velocity here means positive RPM there
+        DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
 
-        leftFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightFlywheel.setDirection(DcMotorSimple.Direction.FORWARD);
-        leftFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rightFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        telemetry.addLine("Hold LB to jog left motor; hold RB to jog right motor.");
-        telemetry.addLine("Use one bumper at a time. Power is limited to 0.15.");
-        telemetry.addLine("Release both bumpers to stop.");
+        telemetry.addLine("Hold RB to jog the flywheel. Power is limited to 0.15.");
+        telemetry.addLine("Release RB to stop.");
         telemetry.update();
 
         waitForStart();
-        int previousLeftPosition = leftFlywheel.getCurrentPosition();
-        int previousRightPosition = rightFlywheel.getCurrentPosition();
+        int previousPosition = flywheel.getCurrentPosition();
         long previousSampleTime = System.nanoTime();
-        int leftTicksPerSample = 0;
-        int rightTicksPerSample = 0;
-        double leftRpm = 0.0;
-        double rightRpm = 0.0;
+        int ticksPerSample = 0;
+        double rpm = 0.0;
 
         try {
             while (opModeIsActive()) {
-                boolean testLeft = gamepad1.left_bumper && !gamepad1.right_bumper;
-                boolean testRight = gamepad1.right_bumper && !gamepad1.left_bumper;
+                boolean testing = gamepad1.right_bumper;
 
-                leftFlywheel.setPower(testLeft ? TEST_POWER : 0.0);
-                rightFlywheel.setPower(testRight ? TEST_POWER : 0.0);
+                flywheel.setPower(testing ? TEST_POWER : 0.0);
 
-                int leftEncoderPosition = leftFlywheel.getCurrentPosition();
-                int rightEncoderPosition = rightFlywheel.getCurrentPosition();
+                // RPM worked out from the position change, to check it against getVelocity()
+                int encoderPosition = flywheel.getCurrentPosition();
                 long sampleTime = System.nanoTime();
                 long elapsedNanos = sampleTime - previousSampleTime;
                 if (elapsedNanos >= RPM_SAMPLE_INTERVAL_NANOS) {
                     double elapsedSeconds = elapsedNanos / 1_000_000_000.0;
-                    leftTicksPerSample = leftEncoderPosition - previousLeftPosition;
-                    rightTicksPerSample = rightEncoderPosition - previousRightPosition;
-                    leftRpm = Math.abs(leftTicksPerSample) * 60.0
+                    ticksPerSample = encoderPosition - previousPosition;
+                    rpm = Math.abs(ticksPerSample) * 60.0
                         / (ENCODER_TICKS_PER_REV * elapsedSeconds);
-                    rightRpm = Math.abs(rightTicksPerSample) * 60.0
-                        / (ENCODER_TICKS_PER_REV * elapsedSeconds);
-                    previousLeftPosition = leftEncoderPosition;
-                    previousRightPosition = rightEncoderPosition;
+                    previousPosition = encoderPosition;
                     previousSampleTime = sampleTime;
                 }
 
-                telemetry.addData("Test", testLeft ? "LEFT" : testRight ? "RIGHT" : "STOPPED");
-                telemetry.addData("Left connection", leftFlywheel.getConnectionInfo());
-                telemetry.addData("Left position", leftEncoderPosition);
-                telemetry.addData("Left ticks/sample, RPM", "%d, %.1f", leftTicksPerSample, leftRpm);
-                telemetry.addData("Left velocity (ticks/sec)", "%.1f", leftFlywheel.getVelocity());
-                telemetry.addData("Right connection", rightFlywheel.getConnectionInfo());
-                telemetry.addData("Right position", rightEncoderPosition);
-                telemetry.addData("Right ticks/sample, RPM", "%d, %.1f", rightTicksPerSample, rightRpm);
-                telemetry.addData("Right velocity (ticks/sec)", "%.1f", rightFlywheel.getVelocity());
+                telemetry.addData("Test", testing ? "RUNNING" : "STOPPED");
+                telemetry.addData("Connection", flywheel.getConnectionInfo());
+                telemetry.addData("Position", encoderPosition);
+                telemetry.addData("Ticks/sample, RPM", "%d, %.1f", ticksPerSample, rpm);
+                telemetry.addData("Velocity (ticks/sec)", "%.1f", flywheel.getVelocity());
                 telemetry.update();
 
                 idle();
             }
         } finally {
-            leftFlywheel.setPower(0.0);
-            rightFlywheel.setPower(0.0);
+            flywheel.setPower(0.0);
         }
     }
 }

@@ -29,8 +29,8 @@
 # GAMEPAD 1 V2 (WIP)
 
 # Booleans
-* A:
-* X:
+* A: Toggle ramp
+* X: Toggle Shooting
 * Y:
 * B:
 * Down:
@@ -45,14 +45,14 @@
 * Start:
 
 # 0 - 1 Values
-* LTrigger:
-* RTrigger: 
+* LTrigger: Intake in
+* RTrigger: Intake out
 
 # -1 - 1 Values
-* LStickX: 
-* LStickY: 
-* RStickX:
-* RStickY:
+* LStickX: Movement
+* LStickY: Movement
+* RStickX: Movement
+* RStickY: Movement
 
 # GAMEPAD 2
 
