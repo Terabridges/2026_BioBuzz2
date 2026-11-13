@@ -36,7 +36,7 @@ public class Robot {
 
         intake = new Intake(hardwareMap);
         outtake = new Outtake(hardwareMap);
-        vision = new Vision(hardwareMap);
+        vision = Vision.getInstance(hardwareMap);
         drive = new Drive(hardwareMap);
 
         subsystems = new ArrayList<>(Arrays.asList(intake, outtake, vision, drive));

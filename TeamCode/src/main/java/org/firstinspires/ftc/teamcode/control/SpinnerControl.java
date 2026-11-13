@@ -1,9 +1,8 @@
-package org.firstinspires.ftc.teamcode.control.Intake;
+package org.firstinspires.ftc.teamcode.control;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Spinner;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;

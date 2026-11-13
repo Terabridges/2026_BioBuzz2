@@ -1,25 +1,13 @@
 apply plugin: 'com.android.application'
 
-//
-// build.gradle in TeamCode
-//
-// Most of the definitions for building your module reside in a common, shared
-// file 'build.common.gradle'. Being factored in this way makes it easier to
-// integrate updates to the FTC into your code. If you really need to customize
-// the build definitions, you can place those customizations in this file, but
-// please think carefully as to whether such customizations are really necessary
-// before doing so.
-
-// Custom definitions may go here
 buildscript {
     repositories {
+        google()
         mavenCentral()
-        maven {
-            url "https://repo.dairy.foundation/releases"
-        }
+        maven { url "https://repo.dairy.foundation/releases" }
     }
     dependencies {
-        classpath "dev.frozenmilk:Load:0.2.4"
+        classpath "dev.frozenmilk:Load:0.3.2"
     }
 }
 // Include common definitions from above.
@@ -33,25 +21,20 @@ android {
     packagingOptions {
         jniLibs.useLegacyPackaging true
     }
+}
 
-    testOptions {
-        unitTests {
-            // Stub out android.* calls (e.g. android.util.Log) instead of throwing
-            // "not mocked". Pure classes like Rates don't need this, but anything
-            // that touches an SDK type will.
-            returnDefaultValues = true
-        }
-    }
+repositories {
+    maven { url 'https://repo.dairy.foundation/releases' }
 }
 
 dependencies {
     implementation project(':FtcRobotController')
-    implementation "com.bylazar:fullpanels:1.0.9"
 
-    // Local JVM unit tests (src/test/java). Run with:
-    //     ./gradlew :TeamCode:testDebugUnitTest
-    testImplementation 'junit:junit:4.13.2'
+    // Your original Sloth & Panels
     implementation("dev.frozenmilk.sinister:Sloth:0.3.2")
+    implementation("com.bylazar.sloth:fullpanels:0.3.2+1.0.13")
+
+    // Your original PsiKit
     implementation 'org.psilynx.psikit:core:0.2.0'
     implementation 'org.psilynx.psikit:ftc:0.2.0'
 }

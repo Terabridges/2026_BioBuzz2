@@ -6,6 +6,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
 import org.firstinspires.ftc.teamcode.util.EdgeDetector;
+import org.psilynx.psikit.core.Logger;
 
 public class VisionControl implements Control {
     Vision vision;
