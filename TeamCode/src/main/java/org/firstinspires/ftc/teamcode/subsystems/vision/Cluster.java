@@ -16,7 +16,7 @@
 
             double distance = Math.hypot(ball.getRelativeX() - relativeCenterX,
                     ball.getRelativeY() - relativeCenterY);
-            return distance < 12; // Radius threshold in field units (e.g. inches or meters)
+            return distance < 12; // Radius threshold in inches
         }
 
         public void add(DetectedBall ball) {

@@ -54,32 +54,62 @@ public class DriveControl implements Control{
     //-------Interface Methods------
     @Override
     public void update() {
-        toggleSlowEdgeDetect.update(gp1.b);
+        toggleSlowEdgeDetect.update(gp1.b); // Note: gp1.b is also bound to driveToPose in VisionControl
         toggleFieldCentricEdgeDetect.update(gp1.x);
 
-        double axial = -gp1.left_stick_y;  // Note: pushing stick forward gives negative value
-        double lateral = gp1.left_stick_x;
-        double yaw = gp1.right_stick_x;
+        boolean isAutoActive = !robot.follower.idle() ||
+                (robot.activeAutoCommand != null && robot.activeAutoCommand.isScheduled());
 
-        Rates moveRate = new Rates(moveCenterRate, maxRate, moveExpo, deadzone);
-        Rates turnRate = new Rates(turnCenterRate, maxRate, turnExpo, deadzone);
+        // 1. Driver stick override cancels auto immediately
+        if (isAutoActive) {
+            boolean driverOverride = Math.abs(gp1.left_stick_y) > 0.1 ||
+                    Math.abs(gp1.left_stick_x) > 0.1 ||
+                    Math.abs(gp1.right_stick_x) > 0.1;
 
-        // Convert axial, lateral, and yaw from stickInputs to powerRequests using the rates we just built
-        axial = moveRate.apply(axial);
-        lateral = moveRate.apply(lateral);
-        yaw = turnRate.apply(yaw);
+            if (driverOverride) {
+                if (robot.activeAutoCommand != null) {
+                    robot.activeAutoCommand.cancel();
+                    robot.activeAutoCommand = null;
+                }
 
-        if (slowMode) {
-            axial *= 0.5;
-            lateral *= 0.5;
-            yaw *= 0.5;
+                robot.follower.stop(); // Transitions Follower to IDLE (follower.idle() == true)
+                drive.stop();
+                robot.intake.spinner.setMegaSpinZero();
+
+                isAutoActive = false;
+            }
         }
 
-        if (drive.useFieldCentric) {
-            drive.driveFieldRelative(axial, lateral, yaw);
-        } else if(drive.manualDrive) {
-            // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
-            drive.drive(axial, lateral, yaw);
+        drive.manualDrive = !isAutoActive;
+
+        // 2. Manual driving (Follower is guaranteed to be IDLE here)
+        if (drive.manualDrive) {
+            if (!robot.follower.idle()) {
+                robot.follower.stop();
+            }
+
+            double axial = -gp1.left_stick_y;
+            double lateral = gp1.left_stick_x;
+            double yaw = gp1.right_stick_x;
+
+            Rates moveRate = new Rates(moveCenterRate, maxRate, moveExpo, deadzone);
+            Rates turnRate = new Rates(turnCenterRate, maxRate, turnExpo, deadzone);
+
+            axial = moveRate.apply(axial);
+            lateral = moveRate.apply(lateral);
+            yaw = turnRate.apply(yaw);
+
+            if (slowMode) {
+                axial *= 0.5;
+                lateral *= 0.5;
+                yaw *= 0.5;
+            }
+
+            if (drive.useFieldCentric) {
+                drive.driveFieldRelative(axial, lateral, yaw);
+            } else {
+                drive.drive(axial, lateral, yaw);
+            }
         }
     }
 

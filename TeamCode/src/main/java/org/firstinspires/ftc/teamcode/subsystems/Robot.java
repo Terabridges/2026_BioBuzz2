@@ -1,10 +1,13 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
+import com.pedropathing.follower.Follower;
+import com.pedropathing.ivy.Command;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.vision.Vision;
@@ -23,17 +26,21 @@ public class Robot {
     private static VoltageSensor voltageSensor;
 
     //---------------- Subsystems ----------------
+    public Follower follower;
     public Intake intake;
     public Outtake outtake;
     public Vision vision;
     public Drive drive;
     private List<Subsystem> subsystems;
+    public Command activeAutoCommand = null;
+
 
     //---------------- Constructors ----------------
     public Robot(HardwareMap hardwareMap, Telemetry telemetry, Gamepad gp1, Gamepad gp2) {
         this.hardwareMap = hardwareMap;
         this.telemetry = telemetry;
 
+        follower = Constants.create(hardwareMap);
         intake = new Intake(hardwareMap);
         outtake = new Outtake(hardwareMap);
         vision = Vision.getInstance(hardwareMap);

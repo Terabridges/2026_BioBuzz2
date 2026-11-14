@@ -1,6 +1,9 @@
 package org.firstinspires.ftc.teamcode.subsystems.vision;
 
+import static com.pedropathing.api.Paths.line;
+
 import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
 import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -29,7 +32,7 @@ public class Vision implements Subsystem {
     private int pipeline = 0;
     //------------Pictures--------------
     private int snapshotCount = 0;
-    private static final String LAPTOP_IP = "192.168.43.202";
+    private static final String LAPTOP_IP = "192.168.43.73";
     private static final int PORT = 6000;
 
     private Socket socket;
@@ -84,8 +87,13 @@ public class Vision implements Subsystem {
         List<DetectedBall> balls = detectorResults()
                 .stream()
                 .map(res -> new DetectedBall(res, robotPose))
-                .collect(Collectors.toList()
-                );
+                // THE FIX: Discard asymptote blowouts!
+                .filter(ball -> {
+                    // (Note: ball.getRelativeX() actually holds the GLOBAL coordinate in your code)
+                    double distance = Math.hypot(ball.getRelativeX() - robotPose.x(), ball.getRelativeY() - robotPose.y());
+                    return distance < 100.0; // Ignore anything calculating further than 100 inches away
+                })
+                .collect(Collectors.toList());
 
         List<Cluster> clusters = new ArrayList<>();
 
@@ -140,6 +148,14 @@ public class Vision implements Subsystem {
 
     public Pose getBestClusterPose(Pose robotPose) {
         return getBestClusterPose(robotPose, 0.0);
+    }
+
+    public Path driveToBestCluster(Pose robotPose, Pose clusterPose) {
+//        Pose absolutePose = new Pose(robotPose.x() + clusterPose.x(), robotPose.y() + clusterPose.y(), robotPose.heading() + clusterPose.heading());
+//        for (double i = 0; i < 1; i += 0.01) {
+//
+//        }
+        return line(robotPose, clusterPose).linear(robotPose, clusterPose);
     }
 
     //-------------Snapshot Methods---------------
