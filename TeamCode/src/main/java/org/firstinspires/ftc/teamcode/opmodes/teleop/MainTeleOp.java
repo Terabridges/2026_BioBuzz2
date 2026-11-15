@@ -16,7 +16,7 @@ import org.firstinspires.ftc.teamcode.subsystems.Robot;
 public class MainTeleOp extends OpMode {
     // MainTeleOp drive configuration.
     private static final DriveManager.Backend DRIVE_BACKEND = DriveManager.Backend.PEDRO;
-    private static final boolean USE_RATES = true;
+    private static final boolean USE_RATES = false;
     private static final boolean START_FIELD_CENTRIC = false;
 
     private Robot robot;
