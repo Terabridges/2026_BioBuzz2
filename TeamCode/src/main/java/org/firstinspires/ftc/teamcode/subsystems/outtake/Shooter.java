@@ -159,6 +159,11 @@ public class Shooter implements Subsystem {
         return currentRPM;
     }
 
+    // True when the flywheel is on and within tolerance (RPM) of its target
+    public boolean isAtRPM(double tolerance){
+        return isShooting() && Math.abs(getTargetRPM() - currentRPM) <= tolerance;
+    }
+
     public void setTargetRPM(double rpm){
         flywheelTargetRPM = rpm;
     }
@@ -213,6 +218,9 @@ public class Shooter implements Subsystem {
                 // A stopped shooter must not receive residual power from PID integral state.
                 flywheelPID.reset();
                 flywheelPow = 0;
+                // Keep reading the speed while off, so isAtRPM() can't pass on an old reading from the
+                // last time the flywheel ran
+                currentRPM = velToRPM(flywheel.getVelocity());
             } else {
                 setFlywheelRPM(newRPM);
             }

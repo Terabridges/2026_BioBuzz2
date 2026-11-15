@@ -40,15 +40,13 @@ public class Turret implements Subsystem {
     // a velocity to keep the command just ahead of the servo
     // TODO measure how fast the turret really turns: no velocity here may be faster than that
     private final double turretDefaultVel = 0.5; // servo units per second, 0.5 = full travel in 2 sec
-    // TODO verify that positive velocity is counterclockwise, flip the sign if the turret goes the wrong way
-
     private final double turretManualVel = 0.3; // positive = counterclockwise (left)
 
     // Aiming: degrees of turret over the full 0-1 servo range, and which way a higher position turns it
     private final double turretRangeDeg = 480;
     // Where the turret points at turretStartPos (0.5), from the robot's front: 180 = straight back
     private final double turretStartAngleDeg = 180;
-    // TODO verify: +1 if a higher servo position turns the turret counterclockwise (left), -1 if clockwise
+    // +1: a higher servo position turns the turret counterclockwise (left). Confirmed on the robot
     private final double turretDirection = 1;
     // One full turret turn in servo units (0.75). Positions this far apart point the same way
     private final double fullTurnPos = 360 / turretRangeDeg;
@@ -149,6 +147,12 @@ public class Turret implements Subsystem {
 
     public boolean isTurretAtTarget(){
         return turretCurrentPos == turretTargetPos;
+    }
+
+    // True when the turret is within tolDeg (turret degrees) of where it was told to aim. This compares
+    // commanded positions, not the analog encoder, so it trusts the servo to keep up with the rate limit
+    public boolean isTurretNearTarget(double tolDeg){
+        return Math.abs(turretTargetPos - turretCurrentPos) * turretRangeDeg <= tolDeg;
     }
 
     public double getRightTurretOffset(){return rightTurretOffset;}

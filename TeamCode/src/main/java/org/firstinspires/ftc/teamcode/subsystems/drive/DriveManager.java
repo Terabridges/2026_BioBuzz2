@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.subsystems.drive;
 
+import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
@@ -63,6 +64,18 @@ public final class DriveManager {
     public Drive drive() {
         if (!started || stopped) throw new IllegalStateException("Drive is not active");
         return drive;
+    }
+
+    /** Pedro's follower, for reading and resetting the field pose. Only the PEDRO backend has one. */
+    public Follower follower() {
+        if (!started || stopped) throw new IllegalStateException("Drive is not active");
+        if (manager == null) throw new IllegalStateException("Only the PEDRO backend has a follower");
+        return manager.follower();
+    }
+
+    /** True when the pose came from autonomous, so it shouldn't be overwritten with a start pose. */
+    public boolean resumedFromAuto() {
+        return manager != null && manager.resumedFromAuto();
     }
 
     public void stop() {

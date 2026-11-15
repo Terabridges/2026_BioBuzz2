@@ -6,6 +6,7 @@ hardware names, mechanisms, controls, architecture, or learn a new game fact, up
 
 Last full review: 2026-11-07, against `feature/Shooting` (`ad5d77c`), with drive code from `dev` (`53538c1`).
 `dev` was merged into `feature/Shooting` on 2026-11-10 (merge commit `0251b8c`); see section 13.
+MainTeleOp was rebuilt for the new control layout on 2026-11-15 (sections 8 and 9).
 
 ---
 
@@ -14,8 +15,10 @@ Last full review: 2026-11-07, against `feature/Shooting` (`ad5d77c`), with drive
 - **Team:** Terabridges, FTC team **18603**.
 - **Season:** **BIOBUZZ** (2026–2027). Kickoff was September 12, 2026.
 - **This repo** (`C:\Code\2026_BioBuzz2`) is the current season's robot code.
-- **Last season's repo** (`C:\Code\2025-decode`, DECODE 2025–2026) is for reference only. DECODE also used
-  ~3 in. balls (Artifacts) with a shooter and turret, so its patterns can help. Don't edit it unless asked.
+- **Last season's repo** is `C:\Code\TeraBridges\2025_Decode` (GitHub `Terabridges/2025_Decode`, DECODE
+  2025–2026). **Branch `VF3LIX` has the most current code.** It's for reference only: DECODE also used ~3 in.
+  balls (Artifacts) with a shooter and turret, so its patterns can help. Don't edit it unless asked.
+  (`C:\Code\2025-decode` is a different team's repo, not ours.)
 - How the user wants things explained can change from session to session; they'll say. They usually build
   big features step by step, so implement only the piece asked for.
 
@@ -122,7 +125,7 @@ audience (bottom). Each tile is 24 in.
   Cell swaps between close and far after each tip, so the turret has to know which Cell is up and aim there.
 - **Turret aiming uses odometry, not vision.** The Pinpoint always knows the robot's field pose, and the
   turret angle is computed from that pose and the hive's location. The math is in `TurretAim` (section 8,
-  Turret), but nothing drives the turret with it yet: today the turret is only driven by hand with the bumpers.
+  Turret), and `OuttakeControl` aims the turret with it every loop in MainTeleOp.
 - **Which Cell to aim at depends on which half of the field the robot is on** (user, 2026-11-08): you can't
   shoot the far Cell from the audience half or the close Cell from the far half, so the aim switches at
   y = 72 (with a band) **even if that Cell is tipped down**. This is mostly for auto.
@@ -265,10 +268,14 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
     positive**, so `PedroDrive` negates `right` and `turn`. It also has `driveOrHold*`, which holds position
     when the sticks are released.
 - **`DriveControl`** runs the sticks through `Rates` (Betaflight-style expo curve; center rate 0.7, expo 0.4,
-  turn center 0.375, deadzone 0.01). Left stick moves, right stick X turns, B toggles slow mode (×0.5),
-  and Back toggles field-centric.
-- `MainTeleOp` uses the `PEDRO` backend, rates on, robot-centric at start, and resumes the
-  autonomous pose.
+  turn center 0.375, deadzone 0.01). Left stick moves, right stick X turns, and **slow mode (×0.5) is on while
+  LB is held**. There's no field-centric button for now. `toggleFieldCentric()` and `toggleSlowMode()` still
+  exist for the test OpModes that override `updateButtons()` with their own buttons.
+- `MainTeleOp` uses the `PEDRO` backend (aiming needs the pose), **rates off** (`USE_RATES = false`: linear sticks with
+  the same deadzone and max output), robot-centric, and resumes the
+  autonomous pose. Without one, it sets the corner start pose **(7.58, 8.19) heading 90°** at Start, the same
+  as Test Shot. `DriveManager.follower()` gives the Pedro follower for reading and resetting the pose (PEDRO
+  backend only), and `resumedFromAuto()` says whether the pose came from autonomous.
 - `Robot` doesn't own a drive any more (only the `(HardwareMap, Telemetry)` constructor). The old `Drive`
   subsystem class and `Drive2_0` are gone.
 - The **Shot Data Collector** doesn't use `DriveManager`: it keeps its own `FollowerManager` (so it can set
@@ -299,7 +306,7 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 
 ### Intake: `Ramp`, `Spinner`, `Transfer`
 
-- **Spinner** (`spinner` motor, REVERSE, no encoder, float): the intake roller. In = +0.98 and out = -0.98.
+- **Spinner** (`spinner` motor, REVERSE, no encoder, brake): the intake roller. In = +0.98 and out = -0.98.
   It can also be set to a variable power.
 - **Ramp** (two servos, left reversed, right = left + 0.024): down 0.47 and up 0.73, clamped to 0.47–0.774.
   `init()` puts it **up**. A toggles it.
@@ -307,17 +314,31 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   shooter. **Blocker** servo: closed 0.52 and open 0.62 (clamped 0.52–0.66). `init()` closes it.
   The blocker holds Pollen back from the flywheel.
 - `Intake.intakeIn(pow)` / `intakeOut(pow)` run the spinner and transfer together.
-- **Beam sensors and ball count (from `feature/intakeSensors`, via `dev`):** `distance_1`..`distance_4`,
-  where active-low means "broken". Sensor 1 is the entry and sensor 4 is the last one before the shooter.
-  `Spinner.updateBallCount()` adds one on sensor 1's rising edge while intaking. It subtracts one on sensor 4's
-  falling edge while intaking (ball shot), or on sensor 1's falling edge while reversing (ball ejected).
-  The count is clamped to 0–4, so the robot holds up to 4 Pollen. `setBallCount(n)` is for auto preloads.
-- **Planned transfer behavior** (`TeamCode/doc/plan.md`): when not shooting, run the
-  transfer at 30%. The transfer pushes only the last ball (the next to be shot). While the last sensor is
-  clear, run intake and transfer at 30%. Once it trips, stop the transfer until the shot.
-- **Single-shot mode (`IntakeControl`):** gamepad 2 B switches between manual triggers and
-  single-shot. In single-shot, gamepad 2 X opens the blocker and runs the spinner. When the ball clears
-  sensor 4, it closes the blocker and runs a reverse pulse (-0.3 for 80 ms) to separate the trailing ball.
+- **Beam sensors and ball count** (`Spinner.java` and `utility/intakeUtility/RealTimeBallFilter.java` copied
+  from the tip of `origin/feature/intakeSensors` on 2026-11-15, because the sensors weren't seeing balls; that
+  branch's other changes were not brought over). `distance_1`..`distance_4`, where **`getState()` true means
+  "broken"** (the older dev version inverted it with `!getState()`; not yet confirmed on the robot which is
+  right). Sensor 1 is the entry and sensor 4 is the last one before the shooter.
+  `Spinner.updateBallCount()` counts the sensors blocked **right now** every loop: a run of 2 blocked sensors
+  next to each other counts as 1 ball (one ball straddling) while the spinner runs, other runs count 1 per
+  sensor, and with the spinner stopped every blocked sensor counts as a ball. `RealTimeBallFilter` then takes
+  the most common count over the last 7 readings (it only changes once a value shows up at least twice).
+  `isFull()` is count ≥ 4. `setBallCount(n)` sets it, but the next update recomputes it from the sensors.
+  The `sensor1Timer`/`sensor4Timer`/`sensor1HoldTimer` fields are unused leftovers.
+- **`IntakeControl` (rewritten 2026-11-15)** owns the ramp, spinner, transfer, and blocker. Every loop it
+  picks one of these, in priority order:
+  1. **LT (outtake):** spinner and transfer full power backward, blocker closed. It always works, even when
+     full or in the middle of a shot.
+  2. **Firing** (while `OuttakeControl.isFiring()` is true): blocker open, spinner and transfer full power in.
+  3. **RT (intake):** spinner full power. The transfer runs at 100% until sensor 4 trips (a ball is waiting
+     at the blocker), then drops to 30%. **At 4 balls the spinner drops to 30% too** (it doesn't stop; the
+     user's call, 2026-11-15), so the balls are held without being pushed hard against the blocker.
+  4. Otherwise stopped, blocker closed.
+
+  The triggers are on/off (threshold 0.1), not proportional. The 3-argument constructor never fires
+  (`IntakeDriveHoldTest` uses it).
+- The older single-shot mode (gamepad 2 B/X) and the gamepad 1 Y blocker toggle were removed.
+  [plan.md](plan.md) has an earlier transfer idea (idle at 30%) that the code doesn't do.
 
 ### Shooter (`Shooter`, `@Configurable`)
 
@@ -330,6 +351,8 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 - **Velocity control:** FTCLib `PIDFController` on RPM. The gains are `p=0.0014`,
   `i=0.00008`, `d=0`, `f=0.000213` (dev's Oct 25 tune). Output is clamped to 0–1, so the flywheel never runs in reverse. A target
   of 0 or less resets the PID and sends 0 power.
+- `isAtRPM(tolerance)`: the flywheel is on and within `tolerance` RPM of its target. `update()` reads the
+  speed even while the flywheel is off, so this can't pass on an old reading.
 - `shootRPM` (default 2000, step 100, max 6000) is the "shooting" speed. `toggleShooting()` switches the
   target between 0 and `shootRPM`. Changing `shootRPM` while shooting applies right away.
 - **Hood** servo: 0.39–0.82, step 0.02, nominal start 0.5. The hood isn't written at init.
@@ -347,7 +370,7 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   End rows at 0 and 1000 in. **repeat the nearest measured row** (1970/0.430 and 2190/0.820), so outside
   17.9–55.2 in. the tables hold flat instead of bending toward made-up values. Hood 0.820 is `Shooter`'s
   `hoodMax`, so past about 49 in. the hood is at its limit and only RPM rises. `InterpLUT.get()` throws at or
-  past the end rows, so the getters return `INVALID` (-2) outside 0 < d < 1000. Nothing calls it yet. Fill it with the **Shot Data Collector** OpMode:
+  past the end rows, so the getters return `INVALID` (-2) outside 0 < d < 1000. `OuttakeControl` (MainTeleOp) and Test Shot read it. Fill it with the **Shot Data Collector** OpMode:
   distance from `TurretAim` (odometry) or a Panels `manualDistance` override; RB fires one ball (open blocker +
   intake for `feedTimeMs`, only when RPM is within `readyTolerance`); Y saves, **gamepad 2 LB** deletes the last row; X
   switches the turret between locked forward and tracking; **B switches alliance during the run** (init: X blue,
@@ -369,15 +392,17 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   steps `turretCurrentPos` toward the target at `turretVel` servo units/s (default 0.5, manual 0.3).
   `init()` is the one direct write, to 0.5, because the real position at startup is unknown.
 - API: `moveTurret(pos[, vel])`, `setTurretVel(vel)` (where 0 stops), `turnTurretLeft/Right()`,
-  `stopTurret()`, `aimAt(angleRad)`, `getTurretPos()`, `getTurretTargetPos()`, `isTurretAtTarget()`.
+  `stopTurret()`, `aimAt(angleRad)`, `getTurretPos()`, `getTurretTargetPos()`, `isTurretAtTarget()`,
+  `isTurretNearTarget(tolDeg)` (commanded position within `tolDeg` turret degrees of the target; it doesn't
+  use the analog encoder).
 - **`aimAt(angleRad)`** (call every loop while tracking): angle from the robot's front, counterclockwise
   positive. 0.5 points straight back, so `positionFor` first measures the angle from straight back
   (`wrap(angle − 180°)`), then servo position = `0.5 + turretDirection · thatDeg / 480`. Forward (0°) is
   0.125 or 0.875. Within about 60° of straight forward there are two positions a full
   turn (0.75) apart that point the same way; `positionFor(angle, fromPos)` takes the in-range one closer to
   the current position, so the turret only swings around when it hits the end of its range. The move still
-  goes through `moveTurret`, so it stays rate-limited. `turretDirection` (+1) is unverified, like the
-  velocity sign.
+  goes through `moveTurret`, so it stays rate-limited. `turretDirection` (+1) is **confirmed** (user,
+  2026-11-15: tracking points the right way).
 - `turret_left_analog` is read through `AbsoluteAnalogEncoder` (0–3.3 V → 0–360°), but **Turret doesn't use
   it in control yet**.
 - **At servo position 0.5 the turret points straight back** (the user corrected an earlier note that said
@@ -385,7 +410,7 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 - **Range: the full 0–1 servo range is used on purpose** (confirmed by the user). That's about 480° of
   turret, so it covers more than a full circle. For some headings there are two servo positions that point
   the same way; aiming code should pick the one closer to the current position.
-- TODOs in the code: measure the real top speed, and confirm that positive velocity means counterclockwise.
+- TODO in the code: measure the real top speed (the user will). Until then `turretDefaultVel` 0.5 is a guess.
 - **`utility/shooterUtility/TurretAim`** (pure math, no hardware): `update(pose)` once per
   loop, then `getTurretAngle()` (radians from the robot's front, counterclockwise positive, (-π, π]),
   `getDistance()` (turret pivot → Cell, inches, the `ShooterData` input), and `getCell()`. It picks the close
@@ -393,10 +418,14 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   Cell positions for blue (`144 − x`), and adds the turret pivot offset rotated by heading. The robot spins
   about its center (the Pedro pose). **Robot: 416 mm long × 385 mm wide** (16.4 × 15.2 in.). The turret
   center is 189 mm from the back, so **19 mm (0.748 in.) behind the robot's center, centered side to side**
-  (`turretOffsetForward = −19/25.4`, `turretOffsetLeft = 0`). **Red close Cell measured at (56.8, 50.7)**;
-  red far Cell (56.8, 93.3) is the close Cell mirrored across y = 72 (the hive's tilt line), not measured
-  yet. All are `@Configurable`. Not wired up yet:
-  the OpMode still needs to call `turretAim.update(pose)` and `turret.aimAt(turretAim.getTurretAngle())`. MainTeleOp still starts at (0, 0, 0) without autonomous; the Shot Data Collector has a corner start pose.
+  (`turretOffsetForward = −19/25.4`, `turretOffsetLeft = 0`). **Red Cells: close (59.25, 56.2), far (59.25, 87.8)** (the user's current values,
+  2026-11-15; they're still collecting data. The older (56.8, 50.7) / (56.8, 93.3) are commented out in the
+  code). All are `@Configurable`. `OuttakeControl` calls `update(pose)` and `turret.aimAt(...)` every loop.
+- **Shooting zone** (`TurretAim.isInZone()`, from the user, 2026-11-15): a 2 × 5 rectangle of tiles, the two
+  rows behind the Cell being aimed at and five columns across starting at the left wall. In the team frame,
+  for the red close Cell that's **x ≤ 120 and y ≤ 48** (`zoneWidth`, `zoneDepth`). The far Cell's zone is the
+  same thing from the far wall (y ≥ 96). It checks the robot's center. Blue's zone is moved over one column
+  (x ≥ 24), which is the same as mirroring red across x = 72, and that's how the code does it.
 - Assembly and calibration: [turret-servo-assembly-aligner.md](turret-servo-assembly-aligner.md). That
   OpMode uses the older device names `turretL`, `turretR`, `floodgate`, and `turretAnalog`. Check those
   against the XML before running it.
@@ -426,45 +455,57 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 
 ## 9. Driver controls (`MainTeleOp`, from code)
 
-**Controls are a work in progress for both gamepads** (the user is still designing gamepad 1, and gamepad 2
-isn't planned yet). Treat the mappings below as the current code, not a final layout, and ask before
-assigning buttons. [gamepadControls.md](gamepadControls.md) is the team's control sheet (V1, a blank V2
-draft, and a blank gamepad 2).
+[gamepadControls.md](gamepadControls.md) is the team's control sheet. Keep it and this section matching the
+code, and ask before assigning the empty buttons.
 
 **Gamepad 1**
 
-| Input | Action |
-| --- | --- |
-| Left stick | Drive (forward/strafe) |
-| Right stick X | Turn |
-| B | Toggle slow mode |
-| Back | Toggle field-centric |
-| A | Toggle ramp |
-| Y | Toggle blocker |
-| X | Toggle shooter (0 ↔ `shootRPM`) |
-| D-pad right / left | `shootRPM` +100 / -100 |
-| D-pad up / down | Hood up / down |
-| LB / RB (held) | Turret left (CCW) / right (CW). Both or neither stops it |
-| RT / LT | Intake in / out (spinner + transfer). Power follows the trigger, clamped to 0.5–0.98 |
+| Input | Action | Class |
+| --- | --- | --- |
+| Left stick | Drive (forward/strafe), robot-centric | `DriveControl` |
+| Right stick X | Turn | `DriveControl` |
+| LB (held) | Slow mode (×0.5): on when pressed, off when released | `DriveControl` |
+| RT | Intake in (see `IntakeControl` in section 8) | `IntakeControl` |
+| LT | Outtake: spinner and transfer full power backward | `IntakeControl` |
+| A | Toggle ramp | `IntakeControl` |
+| B | Toggle flywheel. Turning it off also turns auto shoot off and cancels the macro | `OuttakeControl` |
+| X | Toggle auto shoot. Turning it on also turns the flywheel on | `OuttakeControl` |
+| Y | Shoot macro: flywheel on, wait for speed, then fire no matter what | `OuttakeControl` |
+| D-pad down | Switch the target Cell (close ↔ far, starts on close). Only gates auto shoot | `OuttakeControl` |
 
-**Gamepad 2:** not built yet. B switches between manual and single-shot mode, and X fires a
-single shot. These are temporary.
+**Gamepad 2**
 
-### Planned layout (decided 2026-11-07, buttons not assigned yet)
+| Input | Action | Class |
+| --- | --- | --- |
+| A | Reset the pose to reset point 1 = the start corner (7.58, 8.19) 90° | `MainTeleOp` |
+| X | Reset the pose to reset point 2. **Placeholder:** the same corner until the team picks a spot | `MainTeleOp` |
+| D-pad up / down | Hood offset + / - 0.01 | `OuttakeControl` |
+| D-pad left / right | Turret offset + / - 1° (left = counterclockwise) | `OuttakeControl` |
+| RB / LB | RPM offset + / - 25 | `OuttakeControl` |
+| B | Clear all three offsets | `OuttakeControl` |
 
-The goal is a minimal driver layout, with automation doing the rest and gamepad 2 holding the backups.
+### How shooting works (`OuttakeControl`, `@Configurable`)
 
-- **Gamepad 1 (main driver):** drive (sticks), intake (trigger), **toggle shoot**, **toggle ramp**, plus an
-  outtake/eject for jams or an accidental 5th ball. While shooting is on, the robot should handle everything
-  else: the turret aims from odometry at the open Cell, RPM and hood come from distance, the transfer feeds
-  using the beam sensors, and the intake stops at 4 Pollen.
-- **Gamepad 2 (backups):**
-  - **Reset pose** buttons, to re-zero odometry at known field spots when the pose drifts or the robot
-    gets hit. Aiming depends on the pose.
-  - **Manual override for which Cell is up (close or far)**, for when the HuskyLens can't see the tags.
-  - **Small trims** for aim and shot (turret angle, RPM, hood), for when shots land a bit off.
-- The current manual turret, RPM, and hood buttons on gamepad 1 are there only until that automation
-  exists.
+- **The turret tracks the Cell all the time**, from Start, using `TurretAim` and the odometry pose.
+- **While the flywheel is on**, its RPM and the hood come from `ShooterData` for the current distance, plus the
+  gamepad 2 offsets. The hood is only rewritten when the wanted value moves more than 0.002.
+- **Target Cell (gamepad 1 D-pad down, added 2026-11-15):** the robot can't tell which Cell the hive has tipped
+  open, so the driver picks it: `targetCell` toggles CLOSE ↔ FAR, starting on CLOSE (the y < 72 one). It
+  doesn't change aiming (the turret still aims at the Cell on the robot's own half, `TurretAim.getCell()`);
+  it only stops auto shoot unless `turretAim.getCell() == targetCell`. Telemetry shows "Target Cell".
+- **Auto shoot (X)** starts firing when all of these are true: the ball count is at least 1, the Cell on the
+  robot's half is the target Cell, the robot is in the zone (`TurretAim.isInZone()`), the flywheel is within `rpmTolerance` (50) of its target, and the turret
+  is within `turretToleranceDeg` (3°) of its aim. **Once it starts it dumps every ball**: it keeps firing
+  until the count reaches 0, the robot leaves the zone, the target Cell is switched away, or auto shoot is
+  turned off. RPM and turret aren't
+  checked again mid-dump, because the RPM dips after every ball.
+- **Shoot macro (Y)** ignores the ball count, the zone, and the turret. It turns the flywheel on, waits for
+  speed, then fires for `shootMacroMs` (1500 ms, a guess to tune). The flywheel stays on afterward.
+- "Firing" only sets `isFiring()`. `IntakeControl` opens the blocker and runs the feed while it's true, so
+  `OuttakeControl` must update before `IntakeControl` (MainTeleOp's control order).
+- The alliance is **hard-coded to red** for now (`new TurretAim(Alliance.RED)`, with a TODO).
+- Telemetry shows what auto shoot is waiting on (no balls, wrong half for the target Cell, not in zone,
+  flywheel speed, or turret).
 
 **Auto Select menu (before Start):** D-pad up/down browses, A enters or confirms, B goes back.
 
@@ -508,7 +549,9 @@ The goal is a minimal driver layout, with automation doing the rest and gamepad 
   (every 200 ms) to keep loops fast.
 - PsiKit `Logger.recordOutput` keys include the shooter's target and current RPM, vision tx/ty/area, and
   `PoseLogging`'s `Pinpoint/*` and `Localization/*`.
-- `MainTeleOp` also reports loop, drive, and mechanism times (current and max, in ms).
+- `MainTeleOp`'s running telemetry is trimmed (user, 2026-11-15, "for now") to the pose, `OuttakeControl`, and
+  `IntakeControl` only. Vision, drive/`DriveControl`, and the loop/drive/mechanism timing (ms) were removed;
+  the timing code is in git history if it's wanted back. Init telemetry is unchanged.
 
 ## 13. Merge of `dev` into `feature/Shooting` (2026-11-10)
 
@@ -537,11 +580,15 @@ branch's shooter behavior**, so where the two differed:
 
 ## 14. Known gaps and TODOs
 
-- Turret auto-aim math exists (`TurretAim`) but isn't connected to the turret; the red far Cell position is mirrored from the close Cell, not measured (close Cell and turret offset are measured); and the `ShooterData` tables only cover 17.9–55.2 in. (six rows).
+- The new MainTeleOp (2026-11-15) has **only been unit-tested, not run on the robot**. Things to watch there:
+  whether a 5th ball can still get pulled in at 30% (the limit is 4), whether the last ball clears before the
+  blocker closes, and whether `shootMacroMs` is long enough.
+- MainTeleOp placeholders: the alliance is hard-coded to red, and reset point 2 is the start corner.
+- The `ShooterData` tables only cover 17.9–55.2 in. (six rows), but the shooting zone reaches about 85 in. from
+  the Cell. The user is still collecting shot data and Cell positions.
 - Nothing reads HuskyLens results in game logic yet (open/flipped hive side).
 - No real autonomous routines or measured field poses.
-- Turret: top speed and direction sign are unverified, and the analog encoder isn't used.
-- Gamepad 1 and gamepad 2 layouts aren't finished.
+- Turret: top speed is unmeasured (the user will measure it), and the analog encoder isn't used.
 - Hood direction is unverified. Lights aren't used.
 - `config/` is empty, and the tuning constants are scattered across subsystems.
 - `actions/StateMachines.java` is empty, and StateFactory is unused.
@@ -553,4 +600,4 @@ Record the answers above when you learn them.
 
 - Field layout in the team frame (section 8): the Cell centers (red side; blue is mirrored), the Loading
   Zones, and the starting positions. **The team doesn't know these yet.**
-- Exact buttons for the planned layout (section 9), and which known spots the reset-pose buttons use.
+- Which known spots the reset-pose buttons use (gamepad 2 A and X), and how TeleOp should pick the alliance.

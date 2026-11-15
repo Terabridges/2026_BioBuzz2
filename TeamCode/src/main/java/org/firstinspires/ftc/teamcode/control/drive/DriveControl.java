@@ -25,16 +25,14 @@ public class DriveControl implements Control {
     private boolean slowMode;
     private final Rates moveRate, turnRate;
     private double forward, right, turn;
-    private final EdgeDetector slowToggle = new EdgeDetector(this::toggleSlowMode);
-    private final EdgeDetector fieldToggle = new EdgeDetector(this::toggleFieldCentric);
+    // Slow mode is on only while the button is held: pressing turns it on, letting go turns it off
+    private final EdgeDetector slowHold = new EdgeDetector(() -> slowMode = true, () -> slowMode = false);
 
     public DriveControl(Drive drive, Gamepad gamepad, boolean ratesEnabled, boolean fieldCentric) {
         this.drive = drive;
         this.gamepad = gamepad;
         this.ratesEnabled = ratesEnabled;
         this.fieldCentric = fieldCentric;
-        slowToggle.wasPressed = gamepad.b;
-        fieldToggle.wasPressed = gamepad.back;
         // Rate settings are captured when this control is created at OpMode Start.
         // Linear mode retains the same deadzone and maximum output, without curve shaping.
         moveRate = new Rates(ratesEnabled ? moveCenterRate : maxRate, maxRate,
@@ -53,10 +51,12 @@ public class DriveControl implements Control {
         else drive.robotCentric(forward, right, turn);
     }
 
-    /** Tests can supply their own mappings while sharing stick processing. */
+    /**
+     * MainTeleOp's buttons: slow mode while the left bumper is held. There's no field-centric button for now.
+     * Tests can supply their own mappings while sharing stick processing.
+     */
     protected void updateButtons() {
-        slowToggle.update(gamepad.b);
-        fieldToggle.update(gamepad.back);
+        slowHold.update(gamepad.left_bumper);
     }
 
     public void toggleSlowMode() { slowMode = !slowMode; }

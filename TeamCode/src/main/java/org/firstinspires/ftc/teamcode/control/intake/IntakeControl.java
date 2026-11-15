@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode.control.intake;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.control.Control;
@@ -11,91 +10,65 @@ import org.firstinspires.ftc.teamcode.subsystems.intake.Spinner;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Transfer;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 
+import java.util.function.BooleanSupplier;
+
+/**
+ * Gamepad 1: A toggles the ramp, RT intakes, LT outtakes. This class also owns the blocker and the feed
+ * motors, so when the shooter wants to fire (see OuttakeControl) the balls are fed from here.
+ */
 public class IntakeControl implements Control {
 
-    //---------------- Mode & State Definitions ----------------
-    public enum ShootingMode {
-        MANUAL_TRIGGERS, // Standard trigger control for intake/outtake
-        SINGLE_SHOT      // Beam-breaker automated single-ball sequence
+    private enum State {
+        STOPPED,
+        INTAKING,
+        FULL,       // RT is held with 4 balls already in: spinner and transfer at low power
+        OUTTAKING,
+        FIRING
     }
 
-    private enum SingleShotState {
-        IDLE,
-        FEEDING,
-        BALL_DETECTED,
-        REJECT_TRAILING
-    }
-
-    //---------------- Software (Original Variables Preserved) ----------------
-    Intake intake;
-    Ramp ramp;
-    Spinner spinner;
-    Transfer transfer;
-    Gamepad gp1;
-    Gamepad gp2;
-
-    EdgeDetector spinInRE = new EdgeDetector(() -> spinner.setSpinnerSpinIn());
-    EdgeDetector spinInFE = new EdgeDetector(() -> spinner.setSpinnerSpinZero(), true);
-    EdgeDetector spinOutRE = new EdgeDetector(() -> spinner.setSpinnerSpinOut());
-    EdgeDetector spinOutFE = new EdgeDetector(() -> spinner.setSpinnerSpinZero(), true);
+    //---------------- Software ----------------
+    private final Intake intake;
+    private final Ramp ramp;
+    private final Spinner spinner;
+    private final Transfer transfer;
+    private final Gamepad gp1;
+    private final Gamepad gp2;
+    private final BooleanSupplier firing; // true while the shooter wants the balls fed to it
 
     private final double TRIGGER_THRESHOLD = 0.1;
-    private final double INTAKE_MIN_POW = 0.5;
-    private final double INTAKE_MAX_POW = 0.98;
+    // Low power that holds balls in place: the transfer uses it once a ball is waiting at the blocker,
+    // and the spinner uses it too once the robot is full
+    private final double HOLD_POW = 0.3;
+    private final int MAX_BALLS = 4; // a robot may only control 4 at once
 
-    EdgeDetector toggleRampRE = new EdgeDetector(() -> ramp.toggleRamp());
-    EdgeDetector toggleBlockerRE = new EdgeDetector(() -> transfer.toggleBlocker());
+    private State state = State.STOPPED;
 
-    // 1 = in, -1 = out, 0 = stopped
-    private int intakeDir = 0;
+    private final EdgeDetector toggleRampRE;
 
-    //---------------- Additional Software ----------------
-    private ShootingMode currentMode = ShootingMode.MANUAL_TRIGGERS;
-    private SingleShotState singleShotState = SingleShotState.IDLE;
-
-    private boolean lastSensor4State = false;
-    private ElapsedTime reverseTimer = new ElapsedTime();
-
-    // Mode Switch on Gamepad 1 'B' | Single Shot Execution on Gamepad 1 'X'
-    private EdgeDetector modeSwitchBtn = new EdgeDetector(() -> toggleShootingMode());
-    private EdgeDetector singleShotBtn = new EdgeDetector(() -> triggerSingleShot());
-
-    //---------------- Constructor ----------------
-    public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2){
+    //---------------- Constructors ----------------
+    // firing: asked every loop. While it's true the blocker opens and everything feeds toward the flywheel
+    public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2, BooleanSupplier firing){
         this.intake = intake;
         this.ramp = intake.ramp;
         this.spinner = intake.spinner;
         this.transfer = intake.transfer;
         this.gp1 = gp1;
         this.gp2 = gp2;
+        this.firing = firing;
+        this.toggleRampRE = new EdgeDetector(() -> ramp.toggleRamp());
+    }
+
+    // Intake only, never fires (for tests without a shooter)
+    public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2){
+        this(intake, gp1, gp2, () -> false);
     }
 
     //---------------- Helper Methods ----------------
-    private void toggleShootingMode() {
-        if (currentMode == ShootingMode.MANUAL_TRIGGERS) {
-            currentMode = ShootingMode.SINGLE_SHOT;
-        } else {
-            currentMode = ShootingMode.MANUAL_TRIGGERS;
-        }
-        resetStates();
-    }
-
-    private void triggerSingleShot() {
-        if (currentMode == ShootingMode.SINGLE_SHOT && singleShotState == SingleShotState.IDLE) {
-            transfer.openBlocker();
-            spinner.setSpinnerSpinIn();
-            singleShotState = SingleShotState.FEEDING;
-        }
-    }
-
-    private void resetStates() {
-        singleShotState = SingleShotState.IDLE;
-        spinner.setSpinnerSpinZero();
-        transfer.closeBlocker();
-    }
-
-    private double triggerToIntakePow(double trigger){
-        return Math.min(Math.max(trigger, INTAKE_MIN_POW), INTAKE_MAX_POW);
+    // Only tells the blocker to move when it needs to change, so the servo isn't rewritten every loop
+    private void setBlockerOpen(boolean open){
+        if (open == transfer.isBlockerOpen()) return;
+        if (open) transfer.openBlocker();
+        else transfer.closeBlocker();
     }
 
     //---------------- Control Sub-methods ----------------
@@ -103,81 +76,54 @@ public class IntakeControl implements Control {
         toggleRampRE.update(gp1.a);
     }
 
-    private void updateBlocker(){
-        toggleBlockerRE.update(gp1.y); // Gamepad 1 Y -> Blocker
-    }
-
-    private void updateModeAndActions() {
-        modeSwitchBtn.update(gp2.b); // Gamepad 1 B -> Switch Manual/Single Shot Mode
-        singleShotBtn.update(gp2.x); // Gamepad 1 X -> Execute Single Shot
-    }
-
     private void updateIntake(){
-        // Single-shot state machine overrides manual triggers when active
-        if (currentMode == ShootingMode.SINGLE_SHOT && singleShotState != SingleShotState.IDLE) {
-            boolean currentSensor4 = spinner.isSensor4Broken();
-
-            switch (singleShotState) {
-                case FEEDING:
-                    if (currentSensor4) {
-                        singleShotState = SingleShotState.BALL_DETECTED;
-                    }
-                    break;
-
-                case BALL_DETECTED:
-                    // Falling Edge: Ball was breaking beam 4, now clear into shooter
-                    if (!currentSensor4 && lastSensor4State) {
-                        transfer.closeBlocker();
-                        spinner.setSpinnerPow(-0.3); // Quick reverse pulse to separate trailing ball
-                        reverseTimer.reset();
-                        singleShotState = SingleShotState.REJECT_TRAILING;
-                    }
-                    break;
-
-                case REJECT_TRAILING:
-                    if (reverseTimer.milliseconds() > 80) {
-                        spinner.setSpinnerSpinZero();
-                        singleShotState = SingleShotState.IDLE;
-                    }
-                    break;
-
-                default:
-                    break;
-            }
-
-            lastSensor4State = currentSensor4;
-            return; // Skip manual trigger evaluation while single shot sequence is running
-        }
-
-        // Manual Trigger Control (Runs in MANUAL_TRIGGERS mode or when SINGLE_SHOT is IDLE)
         boolean in = gp1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gp1.left_trigger > TRIGGER_THRESHOLD;
-        int dir = (in == out) ? 0 : (in ? 1 : -1);
 
-        if (dir == 1) intake.intakeIn(triggerToIntakePow(gp1.right_trigger));
-        else if (dir == -1) intake.intakeOut(triggerToIntakePow(gp1.left_trigger));
-        else if (intakeDir != 0) intake.intakeStop();
-
-        intakeDir = dir;
+        if (out && !in) {
+            // Outtake always works, even when full or in the middle of a shot: both motors full power backward
+            state = State.OUTTAKING;
+            setBlockerOpen(false);
+            intake.intakeOut();
+        } else if (firing.getAsBoolean()) {
+            // Dump everything into the flywheel
+            state = State.FIRING;
+            setBlockerOpen(true);
+            intake.intakeIn();
+        } else if (in && !out && spinner.getBallCount() >= MAX_BALLS) {
+            // Full: the spinner drops to the same low power as the transfer, so the balls are held in
+            // place without being pushed hard against the blocker
+            state = State.FULL;
+            setBlockerOpen(false);
+            intake.intakeIn(HOLD_POW);
+        } else if (in && !out) {
+            // Full power until the first ball reaches the last sensor (it's now waiting at the blocker),
+            // then the transfer drops so it only holds that ball in place while more come in behind it
+            state = State.INTAKING;
+            setBlockerOpen(false);
+            spinner.setSpinnerSpinIn();
+            if (spinner.isSensor4Broken()) transfer.setTransferIn(HOLD_POW);
+            else transfer.setTransferIn();
+        } else {
+            state = State.STOPPED;
+            setBlockerOpen(false);
+            intake.intakeStop();
+        }
     }
 
     //---------------- Interface Methods ----------------
     @Override
     public void update(){
         updateRamp();
-        updateBlocker();
-        updateModeAndActions();
         updateIntake();
     }
 
     @Override
     public void addTelemetry(Telemetry telemetry){
-        telemetry.addData("Shooting Mode", currentMode);
-        telemetry.addData("Single Shot State", singleShotState);
+        telemetry.addData("Intake", state);
+        telemetry.addData("Ball Count", spinner.getBallCount());
+        telemetry.addData("Sensor 4 Broken", spinner.isSensor4Broken());
         telemetry.addData("Ramp Up", ramp.isRampUp());
         telemetry.addData("Blocker Open", transfer.isBlockerOpen());
-        telemetry.addData("Intake Dir", intakeDir);
-        telemetry.addData("Sensor 4 Broken", spinner.isSensor4Broken());
-        telemetry.addData("Ball Count", spinner.getBallCount());
     }
 }

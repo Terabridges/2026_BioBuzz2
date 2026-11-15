@@ -29,6 +29,15 @@ public class TurretAim {
     public static double cellSwitchY = 72;    // the hive pivot line
     public static double cellSwitchBand = 6;  // inches past the line before switching Cells
 
+    //---------------- Shooting zone (red; blue is mirrored across x = 72) ----------------
+    // Where the robot is allowed to auto-shoot from: the two rows of tiles (24 in. each) behind the Cell it's
+    // aiming at, and five columns of tiles across starting at the left wall (a 2 x 5 rectangle). For the close
+    // Cell that's y from the audience wall to 48; the far Cell's zone is the same thing from the far wall.
+    // Blue's zone is moved over one column (x 24 to 144), which is the same as mirroring it.
+    // Measured with the robot's center
+    public static double zoneWidth = 120; // inches from the left wall (red)
+    public static double zoneDepth = 48;  // inches from the wall behind the Cell
+
     //---------------- Robot ----------------
     // Where the turret pivot sits relative to the robot's center, in the robot's frame (inches).
     // Forward is toward the front of the robot, left is toward its left side.
@@ -50,6 +59,7 @@ public class TurretAim {
     private double targetX, targetY;
     private double distance;
     private double turretAngle;
+    private boolean inZone;
 
     //---------------- Constructor ----------------
     public TurretAim(Alliance alliance) {
@@ -87,6 +97,11 @@ public class TurretAim {
         double dy = targetY - turretY;
         distance = Math.hypot(dx, dy);
         turretAngle = wrapAngle(Math.atan2(dy, dx) - heading);
+
+        // Zone: flip the robot's position so one check works for both alliances and both Cells
+        double fromSideWall = alliance == Alliance.BLUE ? FIELD_SIZE - x : x;
+        double fromBackWall = far ? FIELD_SIZE - y : y;
+        inZone = fromSideWall <= zoneWidth && fromBackWall <= zoneDepth;
     }
 
     // Switches only once the robot is cellSwitchBand past the line, so sitting on it doesn't flicker
@@ -124,6 +139,9 @@ public class TurretAim {
 
     /** Flat distance from the turret pivot to the target Cell, inches. This is what ShooterData looks up. */
     public double getDistance() { return distance; }
+
+    /** True when the robot's center is in the shooting zone for the Cell being aimed at. */
+    public boolean isInZone() { return inZone; }
 
     public double getTargetX() { return targetX; }
     public double getTargetY() { return targetY; }

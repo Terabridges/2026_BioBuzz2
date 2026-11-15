@@ -24,8 +24,8 @@ public class Ramp implements Subsystem {
     private final double rampMinPos = 0.47;
     private final double rampMaxPos = 0.774;
     // Left servo positions, right gets the offset added
-    private final double rampDownPos = 0.47;
-    private final double rampUpPos = 0.73;
+    private final double rampDownPos = 0.475;
+    private final double rampUpPos = 0.685;
     private boolean rampUp = false;
 
     //---------------- Constructor ----------------

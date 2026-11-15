@@ -53,22 +53,23 @@ public class DriveControlTest {
         assertEquals(linear.turn, shaped.turn, 0);
     }
 
-    @Test public void heldStartButtonsDoNotToggleAndMatchMappingsUseRisingEdges() {
+    @Test public void slowModeIsOnOnlyWhileLeftBumperIsHeldAndOtherButtonsDoNothing() {
         RecordingDrive drive = new RecordingDrive();
         Gamepad gamepad = new Gamepad();
-        gamepad.back = true;
-        gamepad.b = true;
         gamepad.left_stick_y = -1;
-        DriveControl control = new DriveControl(drive, gamepad, true, true);
+        DriveControl control = new DriveControl(drive, gamepad, true, false);
         control.update();
-        assertTrue(drive.field);
         assertEquals(1, drive.forward, 0);
-        gamepad.back = gamepad.b = false;
-        control.update();
-        gamepad.back = gamepad.b = true;
+        gamepad.left_bumper = true;
         control.update(); control.update();
-        assertFalse(drive.field);
         assertEquals(0.5, drive.forward, 0);
+        gamepad.left_bumper = false;
+        control.update();
+        assertEquals(1, drive.forward, 0);
+        gamepad.right_bumper = gamepad.back = gamepad.b = true;
+        control.update();
+        assertFalse(drive.field);
+        assertEquals(1, drive.forward, 0);
     }
 
     @Test public void testControlsCanReplaceMatchButtonsWithoutChangingStickProcessing() {
