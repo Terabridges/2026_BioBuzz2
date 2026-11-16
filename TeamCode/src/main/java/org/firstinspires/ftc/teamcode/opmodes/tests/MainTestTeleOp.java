@@ -69,7 +69,7 @@ public class MainTestTeleOp extends OpMode {
         currentGamepad2 = new Gamepad();
         previousGamepad2 = new Gamepad();
 
-        follower.setPose(new Pose(0,0,0));
+        follower.setPose(new Pose(7.5, 144-7.5,0));
 
         joinedTelemetry = new JoinedTelemetry(
                 PanelsTelemetry.INSTANCE.getFtcTelemetry(),

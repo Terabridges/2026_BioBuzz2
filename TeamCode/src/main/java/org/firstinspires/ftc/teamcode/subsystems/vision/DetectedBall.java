@@ -29,7 +29,7 @@ public class DetectedBall {
         this.cameraX = result.getTargetXPixels();
         this.cameraY = result.getTargetYPixels();
 
-        double ROBOT_CENTER_TO_TILE_EDGE_INCHES = 9.5 + 6.5; // Change to actual forward offset
+        double ROBOT_CENTER_TO_TILE_EDGE_INCHES = 9.5; // Change to actual forward offset
         double CAMERA_LEFT_OFFSET_INCHES = 0.0;    // Change to actual left/right offset
 
         // 1. Get the target in absolute Canva pixels (Top-Left is 0,0)
