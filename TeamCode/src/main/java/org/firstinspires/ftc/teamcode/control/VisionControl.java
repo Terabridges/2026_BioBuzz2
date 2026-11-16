@@ -66,7 +66,7 @@ public class VisionControl implements Control {
                 Path path = vision.driveToBestCluster(this.robot.follower.pose(), target);
 
                 // Trigger radius (in inches from target pose) to start spinning the intake
-                double INTAKE_TRIGGER_RADIUS_INCHES = 8.0;
+                double INTAKE_TRIGGER_RADIUS_INCHES = 4.0;
 
                 Command waitUntilNearBall = waitUntil(() -> {
                     Pose current = this.robot.follower.pose();

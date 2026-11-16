@@ -195,9 +195,9 @@ public class Vision implements Subsystem {
                 notSafeRed = util.getCubicShortestDistanceVertical(robotPose, redControl, blueControl, clusterPose, redSupportStart, redSupportEnd) < 9.0;
                 notSafeBlue = util.getCubicShortestDistanceVertical(robotPose, redControl, blueControl, clusterPose, blueSupportStart, blueSupportEnd) < 9.0;
             } else if (buildRedCurve) {
-                notSafeRed = util.getShortestDistanceVertical(robotPose, redControl, clusterPose, redSupportStart, redSupportEnd) < 9.0;
+                notSafeRed = util.getShortestDistanceVertical(robotPose, redControl, clusterPose, redSupportStart, redSupportEnd) < 11.0;
             } else {
-                notSafeBlue = util.getShortestDistanceVertical(robotPose, blueControl, clusterPose, blueSupportStart, blueSupportEnd) < 9.0;
+                notSafeBlue = util.getShortestDistanceVertical(robotPose, blueControl, clusterPose, blueSupportStart, blueSupportEnd) < 11.0;
             }
 
             // Failsafe
