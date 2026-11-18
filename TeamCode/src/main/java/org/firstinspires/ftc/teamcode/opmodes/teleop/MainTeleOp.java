@@ -6,6 +6,7 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.subsystems.drive.DriveManager;
@@ -44,16 +45,16 @@ public class MainTeleOp extends OpMode {
     // Start pose when autonomous didn't run first, same as Test Shot: robot in the audience-left corner
     // (the field's 0, 0 corner), back against the audience wall, left side against the left wall, facing
     // away from the audience. The pose is the robot's center: half its width in x, half its length in y
-    public static double startX = 385 / 2.0 / 25.4;   // 7.58 in.
-    public static double startY = 416 / 2.0 / 25.4;   // 8.19 in.
-    public static double startHeadingDeg = 90;
+    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();   // 7.58 in.
+    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
+    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
     // Gamepad 2 pose resets, for when odometry drifts: put the robot on the spot, then press the button.
     // Reset point 1 (A) is the start pose above.
     // TODO pick the real spot for reset point 2 (X). Until then it's the start corner too
-    public static double reset2X = 385 / 2.0 / 25.4;
-    public static double reset2Y = 416 / 2.0 / 25.4;
-    public static double reset2HeadingDeg = 90;
+    public static double reset2X = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();
+    public static double reset2Y = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();
+    public static double reset2HeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
     private Robot robot;
     private DriveManager drive;
