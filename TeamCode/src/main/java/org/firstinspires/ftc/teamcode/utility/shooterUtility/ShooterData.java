@@ -10,11 +10,11 @@ public class ShooterData {
     public final double MAX_DISTANCE = 1000; // inches
     public final double INVALID = -2;
 
-    // End rows repeat the closest measured row, so outside the measured range (17.9–55.2 in.) the
+    // End rows repeat the closest measured row, so outside the measured range (12.8–87.5 in.) the
     // tables hold that row's values instead of bending toward made-up numbers at 0 and 1000
-    private final double MIN_RPM = 1970;
-    private final double MAX_RPM = 2190;
-    private final double MIN_ANGLE = 0.430;
+    private final double MIN_RPM = 2070;
+    private final double MAX_RPM = 2520;
+    private final double MIN_ANGLE = 0.400;
     private final double MAX_ANGLE = 0.820;
 
     //---------------- Tables ----------------
@@ -29,27 +29,37 @@ public class ShooterData {
     }
 
     //---------------- Data ----------------
-    // From the Shot Data Collector, 2026-11-10 (shotData_20261110_193002.csv), distance from odometry.
+    // From the Shot Data Collector, 2026-11-17, distance from odometry. 12.8–48.5 in. are from
+    // shotData_20261117_185320.csv (straight back from the close Cell); 54.6–87.5 in. are from
+    // shotData_20261117_191338.csv (from the corners). The comment on each row is the robot pose it was saved at.
     // Distances must strictly increase, and no distance can appear twice
     private void addRPMData() {
         rpmLUT.add(MIN_DISTANCE, MIN_RPM);
-        rpmLUT.add(17.9, 1970);
-        rpmLUT.add(28.8, 2000);
-        rpmLUT.add(34.7, 2060);
-        rpmLUT.add(40.4, 2100);
-        rpmLUT.add(49.1, 2130); // measured 2120, bumped +10
-        rpmLUT.add(55.2, 2190);
+        rpmLUT.add(12.8, 2070);  // (61.1, 44.2) 84.1 deg
+        rpmLUT.add(20.6, 2080);  // (60.4, 36.4) 83.2 deg
+        rpmLUT.add(28.8, 2120);  // (59.5, 28.2) 85.0 deg
+        rpmLUT.add(36.4, 2140);  // (59.0, 20.6) 85.6 deg
+        rpmLUT.add(41.1, 2190);  // (58.7, 15.9) 87.1 deg
+        rpmLUT.add(48.5, 2270);  // (56.7, 8.5) 88.0 deg
+        rpmLUT.add(54.6, 2250);  // (21.7, 17.5) 55.6 deg
+        rpmLUT.add(66.3, 2310);  // (11.3, 11.5) 61.9 deg
+        rpmLUT.add(68.3, 2370);  // (111.7, 13.5) 105.8 deg
+        rpmLUT.add(87.5, 2520);  // (131.3, 7.6) 111.5 deg
         rpmLUT.add(MAX_DISTANCE, MAX_RPM);
     }
 
     private void addAngleData() {
         angleLUT.add(MIN_DISTANCE, MIN_ANGLE);
-        angleLUT.add(17.9, 0.430);
-        angleLUT.add(28.8, 0.560);
-        angleLUT.add(34.7, 0.700);
-        angleLUT.add(40.4, 0.780);
-        angleLUT.add(49.1, 0.820);
-        angleLUT.add(55.2, 0.820);
+        angleLUT.add(12.8, 0.400);
+        angleLUT.add(20.6, 0.460);
+        angleLUT.add(28.8, 0.580);
+        angleLUT.add(36.4, 0.700);
+        angleLUT.add(41.1, 0.750);
+        angleLUT.add(48.5, 0.810);
+        angleLUT.add(54.6, 0.760);
+        angleLUT.add(66.3, 0.780);
+        angleLUT.add(68.3, 0.820);
+        angleLUT.add(87.5, 0.820);
         angleLUT.add(MAX_DISTANCE, MAX_ANGLE);
     }
 

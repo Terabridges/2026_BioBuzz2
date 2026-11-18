@@ -48,7 +48,8 @@ public class TestShot extends OpMode {
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
     public static double feedTimeMs = 1000;     // how long one shot runs the feed. Same as the Shot Data Collector
-    public static double feedPower = 1.0;
+    public static double feedPower = 1.0;        // spinner and transfer power while firing
+    public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first, same as the Shot Data Collector: robot in the audience-left
     // corner, back against the audience wall, left side against the left wall, facing away from the audience
@@ -242,12 +243,19 @@ public class TestShot extends OpMode {
             return; // the triggers don't touch the intake mid-shot
         }
 
-        // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter
+        // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter.
+        // Intaking runs the transfer slower (loadTransferPower) so balls aren't pushed hard against the blocker;
+        // a shot runs it at feedPower. Same as the Shot Data Collector
         boolean in = gamepad1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gamepad1.left_trigger > TRIGGER_THRESHOLD;
-        if (in && !out) intake.intakeIn(triggerToPower(gamepad1.right_trigger));
-        else if (out && !in) intake.intakeOut(triggerToPower(gamepad1.left_trigger));
-        else intake.intakeStop();
+        if (in && !out) {
+            intake.intakeIn(triggerToPower(gamepad1.right_trigger));
+            intake.transfer.setTransferIn(loadTransferPower);
+        } else if (out && !in) {
+            intake.intakeOut(triggerToPower(gamepad1.left_trigger));
+        } else {
+            intake.intakeStop();
+        }
     }
 
     // Same as MainTeleOp: a light press still gives 0.5, full press 0.98

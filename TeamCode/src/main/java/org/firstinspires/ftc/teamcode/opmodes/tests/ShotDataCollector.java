@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
@@ -64,7 +65,8 @@ public class ShotDataCollector extends OpMode {
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
     public static double feedTimeMs = 1000;      // how long one shot runs the feed. Tune so exactly one ball goes
-    public static double feedPower = 1.0;
+    public static double feedPower = 1.0;        // spinner and transfer power while firing
+    public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first: robot in the audience-left corner, back against the
     // audience wall, left side against the left wall, facing away from the audience. The pose is the
@@ -81,7 +83,8 @@ public class ShotDataCollector extends OpMode {
     private FollowerManager followerManager;
     private DriveControl driveControl;
     private TurretAim turretAim;
-    private JoinedTelemetry joinedTelemetry;
+    private JoinedTelemetry joinedTelemetry;   // Panels + Driver Station
+    private Telemetry panelsTelemetry;         // Panels only
 
     //---------------- Software ----------------
     private Alliance alliance = Alliance.RED;
@@ -124,7 +127,8 @@ public class ShotDataCollector extends OpMode {
         intake = robot.intake;
         turretAim = new TurretAim(alliance);
 
-        joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
+        panelsTelemetry = PanelsTelemetry.INSTANCE.getFtcTelemetry();
+        joinedTelemetry = new JoinedTelemetry(panelsTelemetry, telemetry);
 
         String stamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         csvFile = new File(new File(AppUtil.FIRST_FOLDER, "shotData"), "shotData_" + stamp + ".csv");
@@ -191,9 +195,14 @@ public class ShotDataCollector extends OpMode {
         robot.update();
         followerManager.update();
 
+        // Panels gets telemetry every loop so the RPM graph is smooth (Panels itself sends at most every 75 ms).
+        // The Driver Station only every 200 ms, to keep loops fast. Each Panels send replaces all its lines,
+        // so the full set goes every loop, not just the RPM
         if (telemetryTimer.milliseconds() > 200) {
-            addTelemetry(pose);
+            addTelemetry(pose, joinedTelemetry);
             telemetryTimer.reset();
+        } else {
+            addTelemetry(pose, panelsTelemetry);
         }
     }
 
@@ -271,12 +280,19 @@ public class ShotDataCollector extends OpMode {
             return; // the triggers don't touch the intake mid-shot
         }
 
-        // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter
+        // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter.
+        // Intaking runs the transfer slower (loadTransferPower) so balls aren't pushed hard against the blocker;
+        // a shot runs it at feedPower
         boolean in = gamepad1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gamepad1.left_trigger > TRIGGER_THRESHOLD;
-        if (in && !out) intake.intakeIn(triggerToPower(gamepad1.right_trigger));
-        else if (out && !in) intake.intakeOut(triggerToPower(gamepad1.left_trigger));
-        else intake.intakeStop();
+        if (in && !out) {
+            intake.intakeIn(triggerToPower(gamepad1.right_trigger));
+            intake.transfer.setTransferIn(loadTransferPower);
+        } else if (out && !in) {
+            intake.intakeOut(triggerToPower(gamepad1.left_trigger));
+        } else {
+            intake.intakeStop();
+        }
     }
 
     // Same as MainTeleOp: a light press still gives 0.5, full press 0.98
@@ -318,28 +334,34 @@ public class ShotDataCollector extends OpMode {
         }
     }
 
-    private void addTelemetry(Pose pose) {
-        joinedTelemetry.addData("Alliance (B to switch)", alliance);
-        joinedTelemetry.addData("Distance (in)", "%.1f  (%s)", distance,
+    private void addTelemetry(Pose pose, Telemetry t) {
+        t.addData("Alliance (B to switch)", alliance);
+        t.addData("Distance (in)", "%.1f  (%s)", distance,
                 manualDistance > 0 ? "manual" : "odometry, " + turretAim.getCell() + " Cell");
-        joinedTelemetry.addData("Target / current RPM", "%.0f / %.0f", testRPM, shooter.getCurrentRPM());
-        joinedTelemetry.addData("Hood", "%.3f", testHood);
-        joinedTelemetry.addData("Flywheel", flywheelOn ? (isReady() ? "READY" : "spinning up") : "off");
-        joinedTelemetry.addData("Shots", shotCount);
-        joinedTelemetry.addData("Turret", tracking
+        t.addData("Target / current RPM", "%.0f / %.0f", testRPM, shooter.getCurrentRPM());
+        // Plain numbers (not a formatted string) so Panels can graph them. Target is what the flywheel is
+        // actually commanded, so it reads 0 while the flywheel is off
+        t.addData("Target RPM", flywheelOn ? testRPM : 0);
+        t.addData("Current RPM", shooter.getCurrentRPM());
+        t.addData("Hood", "%.3f", testHood);
+        t.addData("Flywheel", flywheelOn ? (isReady() ? "READY" : "spinning up") : "off");
+        t.addData("Shots", shotCount);
+        t.addData("Turret", tracking
                 ? String.format(Locale.US, "tracking, %.1f deg", Math.toDegrees(turretAim.getTurretAngle()))
                 : "locked forward");
-        joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg", pose.x(), pose.y(), Math.toDegrees(pose.heading()));
-        joinedTelemetry.addData("File", fileStatus);
+        t.addData("Pose", "(%.1f, %.1f) %.1f deg", pose.x(), pose.y(), Math.toDegrees(pose.heading()));
+        t.addData("File", fileStatus);
 
-        // Ready to paste into ShooterData, sorted by distance (InterpLUT needs increasing distances)
+        // Ready to paste into ShooterData, sorted by distance (InterpLUT needs increasing distances).
+        // The pose the row was saved at goes in a trailing comment, so the line still pastes as is
         List<double[]> sorted = new ArrayList<>(rows);
         sorted.sort((a, b) -> Double.compare(a[0], b[0]));
-        joinedTelemetry.addLine("---- Saved rows (" + rows.size() + ") ----");
+        t.addLine("---- Saved rows (" + rows.size() + ") ----");
         for (double[] r : sorted) {
-            joinedTelemetry.addLine(String.format(Locale.US, "rpmLUT.add(%.1f, %.0f);  angleLUT.add(%.1f, %.3f);",
-                    r[0], r[1], r[0], r[2]));
+            t.addLine(String.format(Locale.US,
+                    "rpmLUT.add(%.1f, %.0f);  angleLUT.add(%.1f, %.3f);  // (%.1f, %.1f) %.1f deg",
+                    r[0], r[1], r[0], r[2], r[3], r[4], r[5]));
         }
-        joinedTelemetry.update();
+        t.update();
     }
 }

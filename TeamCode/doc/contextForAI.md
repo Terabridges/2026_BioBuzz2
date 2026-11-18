@@ -198,7 +198,7 @@ Use these exact names in `hardwareMap.get(...)`. This table is from `feature/Sho
 | `blocker` | servo | Control 4 | `Transfer` |
 | `hood` | servo | Control 5 | `Shooter` |
 | `light_left`, `light_right` | servo-driven lights | Expansion 0, 1 | `Lights` |
-| `distance_1`..`distance_4` | digital (beam-break style) | Expansion 1, 3, 5, 7 | `Spinner` |
+| `distance_1`..`distance_4` | digital (beam-break style) | Expansion digital 0, 2, 4, 6 (fixed 2026-11-17; was 1, 3, 5, 7) | `Spinner` |
 | `turret_left_analog` | analog input (servo encoder) | Expansion analog 0 | `Turret` |
 | `pinpoint` | goBILDA Pinpoint | Control I2C 1 (confirmed; XML `bus="1"`) | Pedro localizer, field-centric heading |
 | `limelight` | Limelight 3A (Ethernet over USB) | — | `Vision` |
@@ -325,6 +325,16 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   the most common count over the last 7 readings (it only changes once a value shows up at least twice).
   `isFull()` is count ≥ 4. `setBallCount(n)` sets it, but the next update recomputes it from the sensors.
   The `sensor1Timer`/`sensor4Timer`/`sensor1HoldTimer` fields are unused leftovers.
+  - **Bug (2026-11-17): in MainTeleOp the count reads 4 all the time.** Every sensor reading true gives 4
+    whether the spinner runs or not (a run of 4 counts 4). Intake Sensor Test on the robot: still 4 when the
+    sensors are blocked by hand, so the raw values never change (not an inversion; that would drop the count
+    when blocked). **Cause found in git:** the teammate's commit `19eeb29` on `feature/intakeSensors` moved the
+    sensors to **digital ports 0, 2, 4, 6** in `ivy_config.xml` *and* dropped the `!` from `getState()` in the
+    same commit. On 2026-11-15 only `Spinner` was copied over, not the XML, so this branch still has ports
+    1/3/5/7. Nothing is wired to those channels, an unconnected REV digital input reads true, and
+    `deploySloth` pushes this XML to the hub, so all 4 read "blocked". **Fixed 2026-11-17:** the four ports
+    in `ivy_config.xml` are now 0/2/4/6 (`Spinner` unchanged, `getState()` true = blocked). **Not yet
+    rechecked on the robot** with Intake Sensor Test.
 - **`IntakeControl` (rewritten 2026-11-15)** owns the ramp, spinner, transfer, and blocker. Every loop it
   picks one of these, in priority order:
   1. **LT (outtake):** spinner and transfer full power backward, blocker closed. It always works, even when
@@ -359,23 +369,34 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   TODO in the code: check that a higher position raises the hood.
 - **Shot tables: `utility/shooterUtility/ShooterData`** (FTCLib `InterpLUT`, distance in inches → RPM and →
   hood position, via `getRPMVal`/`getAngleVal`). Copied in layout from the 2025 `ShooterData` (repo
-  `Terabridges/2025_Decode`, branch `VF3LIX`, minus the shot-time table). **Six measured rows** (2026-11-10,
-  `shotData_20261110_193002.csv`, odometry distance, PIDF f 0.000213):
+  `Terabridges/2025_Decode`, branch `VF3LIX`, minus the shot-time table). **Ten measured rows** (2026-11-17,
+  odometry distance, red close Cell). It replaced the 2026-11-10 six-row table (17.9–55.2 in.), which is in git
+  history. 12.8–48.5 came from `shotData_20261117_185320.csv` (robot straight back from the close Cell, around
+  x 57–61); 54.6–87.5 came from `shotData_20261117_191338.csv` (from the left and right corners). Each row's
+  pose is a comment in the code:
 
-  | Distance (in.) | 17.9 | 28.8 | 34.7 | 40.4 | 49.1 | 55.2 |
-  |---|---|---|---|---|---|---|
-  | RPM | 1970 | 2000 | 2060 | 2100 | 2130 (measured 2120, bumped +10) | 2190 |
-  | Hood | 0.430 | 0.560 | 0.700 | 0.780 | 0.820 | 0.820 |
+  | Distance (in.) | 12.8 | 20.6 | 28.8 | 36.4 | 41.1 | 48.5 | 54.6 | 66.3 | 68.3 | 87.5 |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | RPM | 2070 | 2080 | 2120 | 2140 | 2190 | 2270 | 2250 | 2310 | 2370 | 2520 |
+  | Hood | 0.400 | 0.460 | 0.580 | 0.700 | 0.750 | 0.810 | 0.760 | 0.780 | 0.820 | 0.820 |
 
-  End rows at 0 and 1000 in. **repeat the nearest measured row** (1970/0.430 and 2190/0.820), so outside
-  17.9–55.2 in. the tables hold flat instead of bending toward made-up values. Hood 0.820 is `Shooter`'s
-  `hoodMax`, so past about 49 in. the hood is at its limit and only RPM rises. `InterpLUT.get()` throws at or
+  **Not monotonic at 48.5 → 54.6 in.** (RPM 2270 → 2250, hood 0.81 → 0.76), where the two runs meet, and 66.3 vs
+  68.3 (left vs right corner) differ by 60 RPM over 2 in. The user entered it as measured. Plots (made 2026-11-17
+  with a matplotlib script that copies FTCLib's InterpLUT spline):
+  [shot-table-2026-11-17.png](images/shot-table-2026-11-17.png) (RPM and hood vs distance) and
+  [shot-positions-2026-11-17.png](images/shot-positions-2026-11-17.png) (where each row was saved on the field).
+  End rows at 0 and 1000 in. **repeat the nearest measured row** (2070/0.400 and 2520/0.820), so outside
+  12.8–87.5 in. the tables hold flat instead of bending toward made-up values. Hood 0.820 is `Shooter`'s
+  `hoodMax`, so from about 68 in. on the hood is at its limit and only RPM rises. `InterpLUT.get()` throws at or
   past the end rows, so the getters return `INVALID` (-2) outside 0 < d < 1000. `OuttakeControl` (MainTeleOp) and Test Shot read it. Fill it with the **Shot Data Collector** OpMode:
   distance from `TurretAim` (odometry) or a Panels `manualDistance` override; RB fires one ball (open blocker +
-  intake for `feedTimeMs`, only when RPM is within `readyTolerance`); Y saves, **gamepad 2 LB** deletes the last row; X
+  spinner and transfer at `feedPower` 1.0 for `feedTimeMs`, only when RPM is within `readyTolerance`); RT loads
+  with the spinner on the trigger but the **transfer at `loadTransferPower` 0.45** (user, 2026-11-17); Y saves, **gamepad 2 LB** deletes the last row; X
   switches the turret between locked forward and tracking; **B switches alliance during the run** (init: X blue,
   B red). Because B is taken, this OpMode overrides `DriveControl.updateButtons()` so only Back (field-centric)
-  works: **no slow mode here**. Each CSV row records the alliance it was saved with. No beam sensors on this
+  works: **no slow mode here**. CSV columns: `distance_in, rpm, hood, x, y, heading_deg, alliance,
+  distance_source`, where x/y/heading are the robot's odometry pose (team frame, inches/degrees) at the moment Y
+  was pressed. The telemetry paste lines also show that pose in a trailing `//` comment. No beam sensors on this
   branch, so a shot is timed.
   Unless autonomous handed off a pose, it sets the pose at Start to **(7.58, 8.19) heading 90°**: robot in
   the audience-left corner, back to the audience wall, facing away from the audience (half the width in x,
@@ -537,7 +558,8 @@ code, and ask before assigning the empty buttons.
 | ServoLimitFinder / SETSERVO | Find servo limits and set default positions |
 | Vision Snapshot Collector | Collect Limelight training images |
 | Shot Data Collector | Fill `ShooterData`: tune RPM/hood per distance, fire single shots, save rows (telemetry paste lines + `/sdcard/FIRST/shotData/shotData_<time>.csv`) |
-| Test Shot | Test `ShooterData`: same as the Shot Data Collector (drive, alliance on B, turret toggle on X, RB fires one ball when READY), but RPM and hood come from the tables for the current distance every loop, and nothing is saved. Hood is only rewritten when the table value moves more than 0.002. Out-of-range distance (INVALID) holds the flywheel off |
+| Test Shot | Test `ShooterData`: same as the Shot Data Collector (drive, alliance on B, turret toggle on X, RB fires one ball when READY), but RPM and hood come from the tables for the current distance every loop, and nothing is saved. RT intaking runs the transfer at `loadTransferPower` 0.45, the same as the collector. Hood is only rewritten when the table value moves more than 0.002. Out-of-range distance (INVALID) holds the flywheel off |
+| Intake Sensor Test | Debug the beam sensors and ball count. Per sensor: raw `getState()`, what `Spinner` calls it (BLOCKED/clear), how many times the raw value changed, and the port (`getConnectionInfo()`). Also the raw per-loop count (a copy of `updateBallCount()`'s rules, since Spinner keeps it private), Spinner's filtered count, the same filter run on the copy (should agree), `isFull()`, and the spinner state and which count rule applies. RT/LT run spinner + transfer in/out with power from the trigger, A resets the change counters. Blocker closed, flywheel off. Sensor lines also show during Init |
 | MainTestTeleOp | Near-empty scratch TeleOp |
 | IntakeDriveHoldTest | Intake with drive-or-hold (was `IntakePlusPredictiveTrackingTeleop`) |
 | Drive Comparison Test | Compare DIRECT and PEDRO drive, toggle rates |
@@ -547,6 +569,10 @@ code, and ask before assigning the empty buttons.
 
 - TeleOp sends telemetry to both Panels and the Driver Station through `JoinedTelemetry`, at about 5 Hz
   (every 200 ms) to keep loops fast.
+- **Exception: the Shot Data Collector** writes its telemetry to Panels every loop (and to the Driver Station
+  every 200 ms), so the numeric `Target RPM` / `Current RPM` lines graph smoothly in Panels (user, 2026-11-17).
+  Panels throttles its own sends to `telemetryUpdateInterval` (75 ms default), and each send replaces all its
+  lines, so the full set has to be written every loop, not just the RPM.
 - PsiKit `Logger.recordOutput` keys include the shooter's target and current RPM, vision tx/ty/area, and
   `PoseLogging`'s `Pinpoint/*` and `Localization/*`.
 - `MainTeleOp`'s running telemetry is trimmed (user, 2026-11-15, "for now") to the pose, `OuttakeControl`, and
@@ -584,8 +610,11 @@ branch's shooter behavior**, so where the two differed:
   whether a 5th ball can still get pulled in at 30% (the limit is 4), whether the last ball clears before the
   blocker closes, and whether `shootMacroMs` is long enough.
 - MainTeleOp placeholders: the alliance is hard-coded to red, and reset point 2 is the start corner.
-- The `ShooterData` tables only cover 17.9–55.2 in. (six rows), but the shooting zone reaches about 85 in. from
-  the Cell. The user is still collecting shot data and Cell positions.
+- The ball count read 4 all the time on the robot (section 8, beam sensors). The sensor ports were fixed
+  2026-11-17; recheck with Intake Sensor Test, and confirm `getState()` true really means blocked.
+- The `ShooterData` tables cover 12.8–87.5 in. (ten rows, 2026-11-17), which spans the shooting zone, but they dip
+  at 48.5 → 54.6 in. where two runs meet (section 8). Only the red close Cell has been measured; the far Cell
+  and blue are untested. The user is still collecting shot data and Cell positions.
 - Nothing reads HuskyLens results in game logic yet (open/flipped hive side).
 - No real autonomous routines or measured field poses.
 - Turret: top speed is unmeasured (the user will measure it), and the analog encoder isn't used.
