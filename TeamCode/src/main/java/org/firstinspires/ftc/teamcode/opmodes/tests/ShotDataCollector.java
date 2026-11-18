@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
+import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.pedro.FollowerManager;
@@ -70,10 +71,10 @@ public class ShotDataCollector extends OpMode {
 
     // Start pose when autonomous didn't run first: robot in the audience-left corner, back against the
     // audience wall, left side against the left wall, facing away from the audience. The pose is the
-    // robot's center, so half the width (385 mm) in x and half the length (416 mm) in y
-    public static double startX = 385 / 2.0 / 25.4;   // 7.58 in.
-    public static double startY = 416 / 2.0 / 25.4;   // 8.19 in.
-    public static double startHeadingDeg = 90;
+    // robot's center. Defaults come from the shared AUDIENCE_LEFT_CORNER_START pose
+    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();   // 7.58 in.
+    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
+    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
     //---------------- Objects ----------------
     private Robot robot;
