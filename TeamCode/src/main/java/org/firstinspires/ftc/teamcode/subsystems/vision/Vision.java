@@ -271,7 +271,6 @@ public class Vision implements Subsystem {
     // Getters for Telemetry
     public String getConnectionStatus() { return connectionStatus; }
     public int getSnapshotCount() { return snapshotCount; }
-    //TODO: Solve problem where driving directly to pollen may not be possible and trying to create a new path on top of existing path could be catastrophic
 
     //---------Interface Methods---------
     @Override
