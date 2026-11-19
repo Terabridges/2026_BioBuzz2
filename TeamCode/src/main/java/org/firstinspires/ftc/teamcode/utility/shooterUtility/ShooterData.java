@@ -20,12 +20,15 @@ public class ShooterData {
     //---------------- Tables ----------------
     private final InterpLUT rpmLUT = new InterpLUT();
     private final InterpLUT angleLUT = new InterpLUT(); // hood servo position, 0.39–0.82
+    private final InterpLUT shotTimeLUT = new InterpLUT();
 
     public ShooterData() {
         addRPMData();
         addAngleData();
         rpmLUT.createLUT();
         angleLUT.createLUT();
+        addShotTimeData();
+        shotTimeLUT.createLUT();
     }
 
     //---------------- Data ----------------
@@ -61,6 +64,27 @@ public class ShooterData {
         angleLUT.add(68.3, 0.820);
         angleLUT.add(87.5, 0.820);
         angleLUT.add(MAX_DISTANCE, MAX_ANGLE);
+    }
+
+    private void addShotTimeData() {
+        // Provisional DECODE flight times (seconds), originally credited to TurtleWalkers.
+        // Replace with BIOBUZZ measurements at the CELL opening using this robot's shots.
+        shotTimeLUT.add(0.0, 0.4);
+        shotTimeLUT.add(42.5, 0.35);
+        shotTimeLUT.add(55.0, 0.35);
+        shotTimeLUT.add(66.7, 0.30);
+        shotTimeLUT.add(81.9, 0.50);
+        shotTimeLUT.add(95.7, 0.70);
+        shotTimeLUT.add(101.9, 0.70);
+        shotTimeLUT.add(116.6, 0.70);
+        shotTimeLUT.add(136.6, 0.80);
+        shotTimeLUT.add(3000.0, 1.0);
+    }
+
+    /** Provisional flight time in seconds for the compensated horizontal range in inches. */
+    public double getShotTimeVal(double distance) {
+        if (!Double.isFinite(distance)) return Double.NaN;
+        return shotTimeLUT.get(Math.max(0.0, Math.min(3000.0, distance)));
     }
 
     //---------------- Lookups ----------------

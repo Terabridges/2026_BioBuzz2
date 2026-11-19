@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.control.outtake;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -62,6 +63,7 @@ public class OuttakeControl implements Control {
     private final Lights lights;
     private final Spinner spinner;       // for the ball count
     private final Supplier<Pose> pose;   // the robot's field pose, from odometry
+    private final Supplier<Velocity> velocity;
 
     private final ShooterData shooterData = new ShooterData();
     // TODO pick the alliance (from autonomous, or during init). Red only for now
@@ -92,11 +94,17 @@ public class OuttakeControl implements Control {
 
     //---------------- Constructor ----------------
     public OuttakeControl(Robot robot, Supplier<Pose> pose, Gamepad gp1, Gamepad gp2){
+        this(robot, pose, Velocity::zero, gp1, gp2);
+    }
+
+    public OuttakeControl(Robot robot, Supplier<Pose> pose, Supplier<Velocity> velocity,
+                          Gamepad gp1, Gamepad gp2) {
         this.shooter = robot.outtake.shooter;
         this.turret = robot.outtake.turret;
         this.lights = robot.outtake.lights;
         this.spinner = robot.intake.spinner;
         this.pose = pose;
+        this.velocity = velocity;
 
         this.suppliers = new ArrayList<>();
         this.consumers = new ArrayList<>();
@@ -197,13 +205,14 @@ public class OuttakeControl implements Control {
         }
 
         // X auto shoot: starting needs everything lined up. Once it starts it keeps going until the balls
-        // are gone, because the RPM dips after every ball and checking it again would stop the dump halfway
+        // are gone, because RPM dips after every ball. Turret tracking is still checked on every loop.
         // It only fires from the zone of the target Cell: in the zone AND the Cell on this half is the target
         boolean canShoot = autoShoot && spinner.getBallCount() >= 1 && turretAim.isInZone()
-                && turretAim.getCell() == targetCell;
+                && turretAim.getCell() == targetCell && shooter.getTargetRPM() > 0
+                && turret.isTurretNearTarget(turretToleranceDeg);
         if (!canShoot) {
             autoFiring = false;
-        } else if (atRPM && turret.isTurretNearTarget(turretToleranceDeg)) {
+        } else if (atRPM) {
             autoFiring = true;
         }
     }
@@ -232,7 +241,7 @@ public class OuttakeControl implements Control {
     @Override
     public void update() {
         updateButtons();
-        turretAim.update(pose.get());
+        turretAim.update(pose.get(), velocity.get(), shooterData::getShotTimeVal);
         updateShooter();
         updateTurret();
         updateFiring();
@@ -247,6 +256,9 @@ public class OuttakeControl implements Control {
         telemetry.addData("Shoot Macro", macroFiring ? "FIRING" : macroWaiting ? "waiting: flywheel speed" : "off");
         telemetry.addData("Aim", "%s Cell, %.1f in, in zone: %b",
                 turretAim.getCell(), turretAim.getDistance(), turretAim.isInZone());
+        telemetry.addData("Moving lead", "%b, flight %.3f s, geometric / shot range %.1f / %.1f in",
+                turretAim.isMovingLeadApplied(), turretAim.getShotFlightTime(),
+                turretAim.getGeometricDistance(), turretAim.getDistance());
         telemetry.addData("RPM target / current", "%.0f / %.0f", shooter.getTargetRPM(), shooter.getCurrentRPM());
         telemetry.addData("Hood Pos", "%.3f", shooter.getHoodPos());
         telemetry.addData("Turret", "%.1f deg from front, pos %.3f",

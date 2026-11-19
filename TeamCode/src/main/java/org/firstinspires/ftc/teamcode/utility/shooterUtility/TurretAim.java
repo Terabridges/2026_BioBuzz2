@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.utility.shooterUtility;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
+import java.util.function.DoubleUnaryOperator;
 
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 
@@ -18,6 +20,10 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
  */
 @Configurable
 public class TurretAim {
+    // Moving-shot tuning. Flight-time calibration lives in ShooterData.
+    public static boolean enableMovingShotLead = true;
+    public static int leadIterations = 10;
+    public static double movingLeadSpeedThresholdInS = 3.0;
 
     //---------------- Field (red; blue is mirrored across x = 72) ----------------
     // Far Cell = close Cell mirrored across the hive's tilt line (y = 72): y = 144 - 50.7. Not measured yet
@@ -60,6 +66,9 @@ public class TurretAim {
     private double distance;
     private double turretAngle;
     private boolean inZone;
+    private double geometricDistance;
+    private double shotFlightTime;
+    private boolean movingLeadApplied;
 
     //---------------- Constructor ----------------
     public TurretAim(Alliance alliance) {
@@ -69,6 +78,42 @@ public class TurretAim {
     //---------------- Methods ----------------
     public void update(Pose pose) {
         update(pose.x(), pose.y(), pose.heading());
+    }
+
+    /**
+     * Field-relative velocity in inches/sec and CCW radians/sec, sampled with the pose.
+     * Compensates inherited turret-pivot velocity during flight. Assumes steady motion
+     * and immediate release. The flight-time function takes inches and returns seconds.
+     */
+    public void update(Pose pose, Velocity velocity, DoubleUnaryOperator flightTime) {
+        update(pose);
+        if (!enableMovingShotLead || velocity == null
+                || !Double.isFinite(velocity.vx) || !Double.isFinite(velocity.vy)
+                || !Double.isFinite(velocity.omega)) return;
+
+        // A turning robot also moves an offset turret around its center: v = omega cross r.
+        double vx = velocity.vx - velocity.omega * (turretY - pose.y());
+        double vy = velocity.vy + velocity.omega * (turretX - pose.x());
+        if (!Double.isFinite(vx) || !Double.isFinite(vy)
+                || Math.hypot(vx, vy) <= Math.max(0.0, movingLeadSpeedThresholdInS)) return;
+
+        double range = geometricDistance;
+        double dx = targetX - turretX;
+        double dy = targetY - turretY;
+        double time = 0;
+        int iterations = Math.max(1, Math.min(20, leadIterations));
+        for (int i = 0; i < iterations; i++) {
+            time = flightTime.applyAsDouble(range);
+            if (!Double.isFinite(time) || time <= 0) return;
+            dx = targetX - turretX - vx * time;
+            dy = targetY - turretY - vy * time;
+            range = Math.hypot(dx, dy);
+            if (!Double.isFinite(range)) return;
+        }
+        distance = range;
+        turretAngle = wrapAngle(Math.atan2(dy, dx) - pose.heading());
+        shotFlightTime = time;
+        movingLeadApplied = true;
     }
 
     /**
@@ -96,6 +141,9 @@ public class TurretAim {
         double dx = targetX - turretX;
         double dy = targetY - turretY;
         distance = Math.hypot(dx, dy);
+        geometricDistance = distance;
+        shotFlightTime = 0;
+        movingLeadApplied = false;
         turretAngle = wrapAngle(Math.atan2(dy, dx) - heading);
 
         // Zone: flip the robot's position so one check works for both alliances and both Cells
@@ -137,8 +185,12 @@ public class TurretAim {
      */
     public double getTurretAngle() { return turretAngle; }
 
-    /** Flat distance from the turret pivot to the target Cell, inches. This is what ShooterData looks up. */
+    /** Compensated horizontal shot range in inches, used by the RPM and hood tables. */
     public double getDistance() { return distance; }
+
+    public double getGeometricDistance() { return geometricDistance; }
+    public double getShotFlightTime() { return shotFlightTime; }
+    public boolean isMovingLeadApplied() { return movingLeadApplied; }
 
     /** True when the robot's center is in the shooting zone for the Cell being aimed at. */
     public boolean isInZone() { return inZone; }
