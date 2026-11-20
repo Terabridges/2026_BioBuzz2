@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.firstinspires.ftc.teamcode.utility.Utility;
@@ -21,6 +22,10 @@ public class Shooter implements Subsystem {
     //---------------- Software ----------------
     private final Utility util = new Utility();
     private final double hoodStart = 0.5;
+
+    private ElapsedTime shotTimer = new ElapsedTime();
+    private final double SHOT_TIMEOUT_SECONDS = 3.0; // Adjust this limit as needed
+    private boolean isFaulted = false;
 
     private double flywheelPow = 0.0;
     private double hoodPos = hoodStart;
@@ -165,6 +170,10 @@ public class Shooter implements Subsystem {
     }
 
     public void setTargetRPM(double rpm){
+        if (rpm > 0 && (flywheelTargetRPM <= 0 || Math.abs(flywheelTargetRPM - rpm) > 5)) {
+            shotTimer.reset();
+            isFaulted = false;
+        }
         flywheelTargetRPM = rpm;
     }
 
@@ -184,6 +193,17 @@ public class Shooter implements Subsystem {
         if (!useFlywheelPID) {
             flywheelPow = 0;
         }
+    }
+
+    public boolean hasFaultOrTimeout(double tolerance) {
+        if (isFaulted) return true;
+
+        // Check the shotTimer: if shooting, not at RPM yet, and time is up
+        if (isShooting() && !isAtRPM(tolerance) && shotTimer.seconds() > SHOT_TIMEOUT_SECONDS) {
+            isFaulted = true; // Latch the fault so it stays red
+            return true;
+        }
+        return false;
     }
 
     //---------------- Interface Methods ----------------

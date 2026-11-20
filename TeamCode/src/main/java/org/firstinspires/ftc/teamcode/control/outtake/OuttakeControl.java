@@ -9,8 +9,10 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Spinner;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Lights;
+import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Turret;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
@@ -57,6 +59,8 @@ public class OuttakeControl implements Control {
     public static double turretOffsetStepDeg = 1;
 
     //---------------- Software ----------------
+    private final Intake intake;
+    private final Outtake outtake;
     private final Shooter shooter;
     private final Turret turret;
     private final Lights lights;
@@ -92,6 +96,8 @@ public class OuttakeControl implements Control {
 
     //---------------- Constructor ----------------
     public OuttakeControl(Robot robot, Supplier<Pose> pose, Gamepad gp1, Gamepad gp2){
+        this.outtake = robot.outtake;
+        this.intake = robot.intake;
         this.shooter = robot.outtake.shooter;
         this.turret = robot.outtake.turret;
         this.lights = robot.outtake.lights;
@@ -128,6 +134,7 @@ public class OuttakeControl implements Control {
             autoShoot = false;
             macroWaiting = false;
             macroFiring = false;
+            shooter.setTargetRPM(0);
         }
     }
 
@@ -186,6 +193,7 @@ public class OuttakeControl implements Control {
     private void updateFiring() {
         boolean atRPM = shooter.isAtRPM(rpmTolerance);
 
+
         // Y macro: once the flywheel is at speed, feed for shootMacroMs no matter what
         if (macroWaiting && atRPM) {
             macroWaiting = false;
@@ -225,7 +233,7 @@ public class OuttakeControl implements Control {
     }
 
     private void updateLights(){
-
+        lights.setLightsAuto(intake, outtake);
     }
 
     //---------------- Interface Methods ----------------
