@@ -3,7 +3,7 @@
 # Booleans
 * A: Toggle ramp
 * X: Toggle Shooting (will auto shoot if in zone)
-* Y: Shoot Macro (when not toggled shooting, holds balls. This just opens the blocker and shoots the balls.)
+* Y: Manual shot, hold (turns the flywheel on, shoots while held once it's at speed, stops when let go. Ignores zone, turret and ball count)
 * B: Toggle flywheel
 * Down: Switch target Cell (close / far, starts on close). Auto shoot only fires from the target Cell's zone
 * Left:

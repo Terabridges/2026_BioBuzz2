@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.utility.shooterUtility;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
 
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 
@@ -46,9 +47,20 @@ public class TurretAim {
     public static double turretOffsetForward = -19 / 25.4; // -0.748 in.
     public static double turretOffsetLeft = 0;
 
+    //---------------- Shooting on the move ----------------
+    // A ball leaves the robot with the robot's velocity added to it. So while the robot moves, aim at a
+    // "virtual target": the Cell minus (robot velocity x flight time). The ball drifts by exactly that much in
+    // the air and lands in the real Cell. The turret aims at the virtual target, and the RPM/hood tables use
+    // the distance to it (driving toward the Cell gives the ball extra speed, so it acts like a closer shot).
+    public static boolean leadEnabled = true;
+    public static double leadScale = 1.0;   // multiplies the flight time. Shots land behind the way the robot is going: raise it
+    public static double leadMinSpeed = 2;  // in/s. Slower than this counts as stopped: no lead
+    public static int leadIterations = 5;   // flight time depends on distance and distance on flight time, so repeat a few times
+
     public enum Cell { CLOSE, FAR }
 
     private static final double FIELD_SIZE = 144;
+    private final ShooterData shooterData = new ShooterData(); // for the flight-time table
 
     //---------------- State ----------------
     private Alliance alliance;
@@ -56,8 +68,12 @@ public class TurretAim {
 
     //---------------- Results ----------------
     private double turretX, turretY;
-    private double targetX, targetY;
-    private double distance;
+    private double targetX, targetY;   // the real Cell
+    private double aimX, aimY;         // where the turret aims: the Cell, or the virtual target while moving
+    private double distance;           // turret pivot to the aim point
+    private double realDistance;       // turret pivot to the real Cell
+    private double flightTime;         // seconds used for the lead (0 when not leading)
+    private boolean leading;
     private double turretAngle;
     private boolean inZone;
 
@@ -67,16 +83,29 @@ public class TurretAim {
     }
 
     //---------------- Methods ----------------
+    /** Aims as if the robot were still (no lead). */
     public void update(Pose pose) {
         update(pose.x(), pose.y(), pose.heading());
+    }
+
+    /** Aims with the lead for the robot's velocity (field frame, inches per second). */
+    public void update(Pose pose, Velocity velocity) {
+        update(pose.x(), pose.y(), pose.heading(), velocity.vx, velocity.vy);
+    }
+
+    /** Aims as if the robot were still (no lead). */
+    public void update(double x, double y, double heading) {
+        update(x, y, heading, 0, 0);
     }
 
     /**
      * @param x       robot center x, inches
      * @param y       robot center y, inches
      * @param heading robot heading, radians, counterclockwise positive
+     * @param vx      robot velocity along field x, inches per second
+     * @param vy      robot velocity along field y, inches per second
      */
-    public void update(double x, double y, double heading) {
+    public void update(double x, double y, double heading, double vx, double vy) {
         updateCell(y);
 
         // The robot spins around its center but the turret is off-center, so its field position
@@ -93,8 +122,11 @@ public class TurretAim {
             targetX = FIELD_SIZE - targetX;
         }
 
-        double dx = targetX - turretX;
-        double dy = targetY - turretY;
+        realDistance = Math.hypot(targetX - turretX, targetY - turretY);
+        updateLead(vx, vy);
+
+        double dx = aimX - turretX;
+        double dy = aimY - turretY;
         distance = Math.hypot(dx, dy);
         turretAngle = wrapAngle(Math.atan2(dy, dx) - heading);
 
@@ -102,6 +134,26 @@ public class TurretAim {
         double fromSideWall = alliance == Alliance.BLUE ? FIELD_SIZE - x : x;
         double fromBackWall = far ? FIELD_SIZE - y : y;
         inZone = fromSideWall <= zoneWidth && fromBackWall <= zoneDepth;
+    }
+
+    // Picks the aim point. Uses the robot center's velocity for the turret: the pivot is only 0.75 in. off
+    // center, so the extra speed it gets from the robot turning is too small to matter
+    private void updateLead(double vx, double vy) {
+        aimX = targetX;
+        aimY = targetY;
+        flightTime = 0;
+        leading = leadEnabled && Math.hypot(vx, vy) > leadMinSpeed;
+        if (!leading) return;
+
+        double aimDistance = realDistance;
+        for (int i = 0; i < Math.max(1, leadIterations); i++) {
+            double t = shooterData.getShotTimeVal(aimDistance);
+            if (t == shooterData.INVALID) t = 0; // off the table: don't lead
+            flightTime = t * leadScale;
+            aimX = targetX - vx * flightTime;
+            aimY = targetY - vy * flightTime;
+            aimDistance = Math.hypot(aimX - turretX, aimY - turretY);
+        }
     }
 
     // Switches only once the robot is cellSwitchBand past the line, so sitting on it doesn't flicker
@@ -137,8 +189,26 @@ public class TurretAim {
      */
     public double getTurretAngle() { return turretAngle; }
 
-    /** Flat distance from the turret pivot to the target Cell, inches. This is what ShooterData looks up. */
+    /**
+     * Flat distance from the turret pivot to the aim point, inches. This is what ShooterData looks up. Same as
+     * {@link #getRealDistance()} unless the shot is being led.
+     */
     public double getDistance() { return distance; }
+
+    /** Flat distance from the turret pivot to the real Cell, inches, ignoring the lead. */
+    public double getRealDistance() { return realDistance; }
+
+    /** True when the aim is moved for the robot's velocity this loop. */
+    public boolean isLeading() { return leading; }
+
+    /** Flight time used for the lead, seconds (already times leadScale), or 0 when not leading. */
+    public double getFlightTime() { return flightTime; }
+
+    /** How far the aim point is moved from the real Cell, inches. */
+    public double getLeadOffset() { return Math.hypot(aimX - targetX, aimY - targetY); }
+
+    public double getAimX() { return aimX; }
+    public double getAimY() { return aimY; }
 
     /** True when the robot's center is in the shooting zone for the Cell being aimed at. */
     public boolean isInZone() { return inZone; }

@@ -2,8 +2,8 @@ package org.firstinspires.ftc.teamcode.control.outtake;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.hardware.Gamepad;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
@@ -32,7 +32,8 @@ import org.psilynx.psikit.core.Logger;
  *   B   toggle flywheel
  *   X   toggle auto shoot: turns the flywheel on, then fires whenever there's a ball, the robot is in the
  *       zone of the target Cell, the turret is on target and the flywheel is at speed
- *   Y   shoot macro: turns the flywheel on, waits for speed, then fires no matter what
+ *   Y   manual shot (hold): turns the flywheel on and fires for as long as Y is held, starting as soon as
+ *       the flywheel is at speed. Ignores the ball count, the zone and the turret. Letting go stops it
  *   D-pad down   switch the target Cell (the one that's open): close (y < 72) or far. Starts on close
  * Gamepad 2 (offsets for when shots land a bit off)
  *   D-pad up / down      hood offset
@@ -50,7 +51,6 @@ public class OuttakeControl implements Control {
     //---------------- Tunable (Panels) ----------------
     public static double rpmTolerance = 50;       // RPM from target before a shot can start
     public static double turretToleranceDeg = 3;  // turret degrees from its aim before an auto shot can start
-    public static double shootMacroMs = 1500;     // how long the Y macro feeds balls
     // How much one press on gamepad 2 changes each offset
     public static double rpmOffsetStep = 25;
     public static double hoodOffsetStep = 0.01;
@@ -62,6 +62,7 @@ public class OuttakeControl implements Control {
     private final Lights lights;
     private final Spinner spinner;       // for the ball count
     private final Supplier<Pose> pose;   // the robot's field pose, from odometry
+    private final Supplier<Velocity> velocity; // the robot's field velocity (in/s), for leading shots on the move
 
     private final ShooterData shooterData = new ShooterData();
     // TODO pick the alliance (from autonomous, or during init). Red only for now
@@ -69,10 +70,9 @@ public class OuttakeControl implements Control {
 
     private boolean flywheelOn = false;   // B
     private boolean autoShoot = false;    // X
-    private boolean macroWaiting = false; // Y was pressed, waiting for the flywheel to reach speed
-    private boolean macroFiring = false;  // Y macro is feeding balls
+    private boolean manualHeld = false;   // Y is being held
+    private boolean manualFiring = false; // Y manual shot is feeding balls
     private boolean autoFiring = false;   // auto shoot is feeding balls
-    private final ElapsedTime macroTimer = new ElapsedTime();
     // The Cell to shoot at, picked by the driver because the robot can't tell which one the hive has tipped
     // open. The turret still aims at the Cell on the robot's own half; this only decides whether auto shoot
     // may fire there (D-pad down)
@@ -91,19 +91,21 @@ public class OuttakeControl implements Control {
     private final List<Consumer<Boolean>> consumers;
 
     //---------------- Constructor ----------------
-    public OuttakeControl(Robot robot, Supplier<Pose> pose, Gamepad gp1, Gamepad gp2){
+    public OuttakeControl(Robot robot, Supplier<Pose> pose, Supplier<Velocity> velocity, Gamepad gp1, Gamepad gp2){
         this.shooter = robot.outtake.shooter;
         this.turret = robot.outtake.turret;
         this.lights = robot.outtake.lights;
         this.spinner = robot.intake.spinner;
         this.pose = pose;
+        this.velocity = velocity;
 
         this.suppliers = new ArrayList<>();
         this.consumers = new ArrayList<>();
 
         connect(() -> gp1.b, this::toggleFlywheel);
         connect(() -> gp1.x, this::toggleAutoShoot);
-        connect(() -> gp1.y, this::startShootMacro);
+        // Y: pressing starts the manual shot, letting go stops it
+        connect(() -> gp1.y, this::startManualShot, () -> manualHeld = false);
         connect(() -> gp1.dpad_down, this::toggleTargetCell);
 
         connect(() -> gp2.dpad_up, () -> hoodOffset += hoodOffsetStep);
@@ -120,14 +122,19 @@ public class OuttakeControl implements Control {
         consumers.add(new EdgeDetector(thingToDo));
     }
 
+    // For a button that does one thing when pressed and another when let go
+    private void connect(Supplier<Boolean> someGamePadControl, Runnable onPress, Runnable onRelease) {
+        suppliers.add(someGamePadControl);
+        consumers.add(new EdgeDetector(onPress, onRelease));
+    }
+
     //---------------- Button Methods ----------------
     // Turning the flywheel off also cancels any shooting, so nothing gets fed into a stopped flywheel
     private void toggleFlywheel() {
         flywheelOn = !flywheelOn;
         if (!flywheelOn) {
             autoShoot = false;
-            macroWaiting = false;
-            macroFiring = false;
+            manualFiring = false;
         }
     }
 
@@ -140,9 +147,9 @@ public class OuttakeControl implements Control {
         if (autoShoot) flywheelOn = true;
     }
 
-    private void startShootMacro() {
+    private void startManualShot() {
         flywheelOn = true;
-        if (!macroFiring) macroWaiting = true;
+        manualHeld = true;
     }
 
     private void clearOffsets() {
@@ -186,14 +193,12 @@ public class OuttakeControl implements Control {
     private void updateFiring() {
         boolean atRPM = shooter.isAtRPM(rpmTolerance);
 
-        // Y macro: once the flywheel is at speed, feed for shootMacroMs no matter what
-        if (macroWaiting && atRPM) {
-            macroWaiting = false;
-            macroFiring = true;
-            macroTimer.reset();
-        }
-        if (macroFiring && macroTimer.milliseconds() >= shootMacroMs) {
-            macroFiring = false;
+        // Y manual shot: while Y is held, start feeding once the flywheel is at speed, then keep feeding until
+        // Y is let go. Like auto shoot, the RPM isn't checked again once it starts, because it dips after every ball
+        if (!manualHeld || !flywheelOn) {
+            manualFiring = false;
+        } else if (atRPM) {
+            manualFiring = true;
         }
 
         // X auto shoot: starting needs everything lined up. Once it starts it keeps going until the balls
@@ -210,7 +215,7 @@ public class OuttakeControl implements Control {
 
     /** True while balls should be fed into the flywheel. IntakeControl opens the blocker and feeds. */
     public boolean isFiring() {
-        return macroFiring || autoFiring;
+        return manualFiring || autoFiring;
     }
 
     // Says what auto shoot is waiting on, so the drivers can tell why it isn't firing
@@ -232,7 +237,9 @@ public class OuttakeControl implements Control {
     @Override
     public void update() {
         updateButtons();
-        turretAim.update(pose.get());
+        // With the velocity, TurretAim leads the shot: the turret and the RPM/hood tables use a target moved
+        // against the robot's motion (TurretAim.leadEnabled turns it off in Panels)
+        turretAim.update(pose.get(), velocity.get());
         updateShooter();
         updateTurret();
         updateFiring();
@@ -241,12 +248,21 @@ public class OuttakeControl implements Control {
 
     @Override
     public void addTelemetry(Telemetry telemetry) {
+        // Turret pivot to the real Cell, inches. Its own line so it's easy to read off
+        telemetry.addData("Distance (in)", "%.1f", turretAim.getRealDistance());
+        // While moving, the tables use the distance to the led aim point instead
+        if (turretAim.isLeading()) {
+            telemetry.addData("Lead", "%.2f s, aim moved %.1f in, table distance %.1f in",
+                    turretAim.getFlightTime(), turretAim.getLeadOffset(), turretAim.getDistance());
+        } else {
+            telemetry.addData("Lead", TurretAim.leadEnabled ? "stopped" : "off (Panels)");
+        }
         telemetry.addData("Flywheel", flywheelOn ? (shooter.isAtRPM(rpmTolerance) ? "READY" : "spinning up") : "off");
         telemetry.addData("Target Cell", targetCell);
         telemetry.addData("Auto Shoot", autoShootStatus());
-        telemetry.addData("Shoot Macro", macroFiring ? "FIRING" : macroWaiting ? "waiting: flywheel speed" : "off");
+        telemetry.addData("Manual Shot (Y)", manualFiring ? "FIRING" : manualHeld ? "waiting: flywheel speed" : "off");
         telemetry.addData("Aim", "%s Cell, %.1f in, in zone: %b",
-                turretAim.getCell(), turretAim.getDistance(), turretAim.isInZone());
+                turretAim.getCell(), turretAim.getRealDistance(), turretAim.isInZone());
         telemetry.addData("RPM target / current", "%.0f / %.0f", shooter.getTargetRPM(), shooter.getCurrentRPM());
         telemetry.addData("Hood Pos", "%.3f", shooter.getHoodPos());
         telemetry.addData("Turret", "%.1f deg from front, pos %.3f",

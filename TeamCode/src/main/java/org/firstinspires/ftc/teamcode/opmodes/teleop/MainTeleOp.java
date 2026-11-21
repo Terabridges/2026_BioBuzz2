@@ -4,6 +4,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
@@ -26,7 +27,7 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  *   A         toggle ramp                            IntakeControl
  *   B         toggle flywheel                        OuttakeControl
  *   X         toggle auto shoot                      OuttakeControl
- *   Y         shoot macro                            OuttakeControl
+ *   Y         manual shot: fires while held          OuttakeControl
  *   D-pad down  switch target Cell (close / far)     OuttakeControl
  * Gamepad 2
  *   A / X     reset the pose at reset point 1 / 2    here
@@ -71,8 +72,9 @@ public class MainTeleOp extends OpMode {
     @Override public void init() {
         drive = new DriveManager(DRIVE_BACKEND);
         robot = new Robot(hardwareMap, telemetry);
-        // The pose is only asked for after Start, once the drive (and its follower) exists
-        outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(), gamepad1, gamepad2);
+        // The pose and velocity are only asked for after Start, once the drive (and its follower) exists
+        outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(),
+                () -> drive.follower().velocity(), gamepad1, gamepad2);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
         // Outtake goes before intake: it decides whether to fire, and the intake feeds the balls when it does
         mechanismControls = new Control[]{
@@ -97,42 +99,33 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void start() {
-        try {
-            robot.toInit();
-            drive.start(hardwareMap, true);
-            // Aiming depends on the pose, so without one from autonomous the robot has to start at the start pose
-            if (!drive.resumedFromAuto()) setPose(startX, startY, startHeadingDeg);
-            driveControl = new DriveControl(drive.drive(), gamepad1, USE_RATES, START_FIELD_CENTRIC);
-        } catch (RuntimeException failure) {
-            stop();
-            throw failure;
-        }
+        robot.toInit();
+        drive.start(hardwareMap, true);
+        // Aiming depends on the pose, so without one from autonomous the robot has to start at the start pose
+        if (!drive.resumedFromAuto()) setPose(startX, startY, startHeadingDeg);
+        driveControl = new DriveControl(drive.drive(), gamepad1, USE_RATES, START_FIELD_CENTRIC);
         lastTelemetry = System.nanoTime();
     }
 
     @Override public void loop() {
         long now = System.nanoTime();
-        try {
-            // Apply driving before potentially slow mechanism/camera hardware reads.
-            resetPose1.update(gamepad2.a);
-            resetPose2.update(gamepad2.x);
-            driveControl.update();
-            drive.update();
-            for (Control control : mechanismControls) control.update();
-            robot.update();
-            // Only the pose, outtake and intake for now (no vision, drive or loop timing)
-            if (now - lastTelemetry >= 200_000_000L) {
-                Pose pose = drive.follower().pose();
-                joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg",
-                        pose.x(), pose.y(), Math.toDegrees(pose.heading()));
-                outtakeControl.addTelemetry(joinedTelemetry);
-                intakeControl.addTelemetry(joinedTelemetry);
-                joinedTelemetry.update();
-                lastTelemetry = now;
-            }
-        } catch (RuntimeException failure) {
-            stop();
-            throw failure;
+        // Apply driving before potentially slow mechanism/camera hardware reads.
+        resetPose1.update(gamepad2.a);
+        resetPose2.update(gamepad2.x);
+        driveControl.update();
+        drive.update();
+        for (Control control : mechanismControls) control.update();
+        robot.update();
+        // Only the pose, outtake and intake for now (no vision, drive or loop timing)
+        if (now - lastTelemetry >= 200_000_000L) {
+            Pose pose = drive.follower().pose();
+            joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg",
+                    pose.x(), pose.y(), Math.toDegrees(pose.heading()));
+            addVelocityTelemetry(pose);
+            outtakeControl.addTelemetry(joinedTelemetry);
+            intakeControl.addTelemetry(joinedTelemetry);
+            joinedTelemetry.update();
+            lastTelemetry = now;
         }
     }
 
@@ -141,6 +134,25 @@ public class MainTeleOp extends OpMode {
             if (robot != null) robot.stop();
         } finally {
             if (drive != null) drive.stop();
+        }
+    }
+
+    // Step 1 of shooting on the move: check the odometry velocity before using it to lead shots.
+    // The lead math needs velocity in the FIELD frame (x along the audience wall, y away from it).
+    // Test: drive straight forward with the robot facing different ways. If the velocity is field-frame,
+    // "Travel dir" matches the heading every time. If it's robot-frame, it reads about 0 deg every time.
+    // Also watch "Speed" with the robot sitting still: that's the noise the lead would have to ignore.
+    private void addVelocityTelemetry(Pose pose) {
+        Velocity velocity = drive.follower().velocity();
+        double speed = Math.hypot(velocity.vx, velocity.vy);
+        joinedTelemetry.addData("Velocity x / y", "%+.1f / %+.1f in/s", velocity.vx, velocity.vy);
+        joinedTelemetry.addData("Speed", "%.2f in/s", speed);
+        // Direction is meaningless when (nearly) still, so only show it while actually moving
+        if (speed > 5) {
+            joinedTelemetry.addData("Travel dir / heading", "%.0f / %.0f deg",
+                    Math.toDegrees(Math.atan2(velocity.vy, velocity.vx)), Math.toDegrees(pose.heading()));
+        } else {
+            joinedTelemetry.addData("Travel dir / heading", "(too slow) / %.0f deg", Math.toDegrees(pose.heading()));
         }
     }
 

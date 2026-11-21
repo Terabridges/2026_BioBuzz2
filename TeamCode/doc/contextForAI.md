@@ -246,7 +246,8 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   `Consumer<Boolean>` with optional rising and falling Runnables, `update(boolean)` (same as `accept`), and
   public `wasPressed`. `OuttakeControl` uses a `connect(supplier, runnable)` list.
 - **Stopping safely:** `stop()` methods use `try/finally` so one failing motor doesn't stop the others
-  from being zeroed. OpModes catch `RuntimeException` in `start/loop`, call `stop()`, and rethrow.
+  from being zeroed. Some OpModes catch `RuntimeException` in `start/loop`, call `stop()`, and rethrow.
+  **`MainTeleOp` no longer does** (the user had it removed, 2026-11-19); its `stop()` keeps the `try/finally`.
 - **Tunable values:** `@Configurable` classes expose `public static` fields to Panels. Static fields
   **persist between OpModes** in the same app session. For example, `Shooter.stop()` deliberately resets
   `flywheelTargetRPM` for this reason.
@@ -373,17 +374,21 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   odometry distance, red close Cell). It replaced the 2026-11-10 six-row table (17.9–55.2 in.), which is in git
   history. 12.8–48.5 came from `shotData_20261117_185320.csv` (robot straight back from the close Cell, around
   x 57–61); 54.6–87.5 came from `shotData_20261117_191338.csv` (from the left and right corners). Each row's
-  pose is a comment in the code:
+  pose is a comment in the code.
 
-  | Distance (in.) | 12.8 | 20.6 | 28.8 | 36.4 | 41.1 | 48.5 | 54.6 | 66.3 | 68.3 | 87.5 |
-  |---|---|---|---|---|---|---|---|---|---|---|
-  | RPM | 2070 | 2080 | 2120 | 2140 | 2190 | 2270 | 2250 | 2310 | 2370 | 2520 |
-  | Hood | 0.400 | 0.460 | 0.580 | 0.700 | 0.750 | 0.810 | 0.760 | 0.780 | 0.820 | 0.820 |
+  **`ShooterData.java` is the only source of truth for the values: the user tunes rows by hand** (user,
+  2026-11-21). So this doc doesn't copy them; read the file. Since the measurement, hand edits have smoothed the
+  RPM and hood rows (for example 48.5 in. went from 2270 / 0.810 as measured to 2230 / 0.760, removing a dip where
+  the two runs met).
 
-  **Not monotonic at 48.5 → 54.6 in.** (RPM 2270 → 2250, hood 0.81 → 0.76), where the two runs meet, and 66.3 vs
-  68.3 (left vs right corner) differ by 60 RPM over 2 in. The user entered it as measured. Plots (made 2026-11-17
-  with a matplotlib script that copies FTCLib's InterpLUT spline):
-  [shot-table-2026-11-17.png](images/shot-table-2026-11-17.png) (RPM and hood vs distance) and
+  **Graphs:** `python TeamCode/doc/tools/plot_shooter_data.py` (from the repo root) redraws
+  [shooter-rpm.png](images/shooter-rpm.png), [shooter-hood.png](images/shooter-hood.png), and
+  [shooter-shot-time.png](images/shooter-shot-time.png) from the current files. It parses the rows out of
+  `ShooterData.java` (dots), compiles that file and runs FTCLib's real `InterpLUT` for the line, and reads
+  `hoodMin`/`hoodMax` from `Shooter.java`. It also notes any row that goes down. Needs matplotlib, a JDK, and FTCLib
+  in the Gradle cache (any build). Rerun it after editing the tables. `InterpLUT` is not perfectly monotone: e.g.
+  hood wiggles about 0.001 between 54.6 and 66.3 in., under `OuttakeControl`'s 0.002 hood deadband.
+  Older one-off plots: [shot-table-2026-11-17.png](images/shot-table-2026-11-17.png) (the as-measured table) and
   [shot-positions-2026-11-17.png](images/shot-positions-2026-11-17.png) (where each row was saved on the field).
   End rows at 0 and 1000 in. **repeat the nearest measured row** (2070/0.400 and 2520/0.820), so outside
   12.8–87.5 in. the tables hold flat instead of bending toward made-up values. Hood 0.820 is `Shooter`'s
@@ -441,7 +446,31 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   center is 189 mm from the back, so **19 mm (0.748 in.) behind the robot's center, centered side to side**
   (`turretOffsetForward = −19/25.4`, `turretOffsetLeft = 0`). **Red Cells: close (59.25, 56.2), far (59.25, 87.8)** (the user's current values,
   2026-11-15; they're still collecting data. The older (56.8, 50.7) / (56.8, 93.3) are commented out in the
-  code). All are `@Configurable`. `OuttakeControl` calls `update(pose)` and `turret.aimAt(...)` every loop.
+  code). All are `@Configurable`. `OuttakeControl` calls `update(pose, velocity)` and `turret.aimAt(...)` every
+  loop.
+- **Shooting on the move (lead, added 2026-11-19)** in `TurretAim`. `update(pose, velocity)` (or
+  `update(x, y, heading, vx, vy)`) aims at a **virtual target = Cell − robot velocity × flight time**. It repeats
+  `leadIterations` (5) times because the flight time comes from `ShooterData.getShotTimeVal(distance)`, which
+  depends on the aim distance. `getTurretAngle()` and `getDistance()` then use that aim point, so the turret
+  **and** the RPM/hood tables are led. `getRealDistance()` is to the real Cell. The old `update(pose)` /
+  `update(x, y, heading)` don't lead (velocity 0), so the Shot Data Collector and Test Shot are unchanged.
+  Panels: `leadEnabled` (true), `leadScale` (1.0, multiplies the flight time; raise it if shots land behind the
+  direction of travel), `leadMinSpeed` (2 in/s, slower counts as stopped). It uses the robot center's velocity
+  (field frame, confirmed on the robot) and ignores turning (the pivot is only 0.75 in. off center), delay, and
+  the turret's slew time. `TurretAim` builds its own `ShooterData` for the flight-time table. Getters:
+  `isLeading()`, `getFlightTime()`, `getLeadOffset()`, `getAimX/Y()`. Unit tests in `TurretAimTest`.
+- **Shot-time table** (`ShooterData.getShotTimeVal`, measured by the user 2026-11-19 from slow-motion video,
+  ball leaving the flywheel to reaching the Cell opening, shooting with the RPM/hood tables):
+
+  | Distance (in.) | 18 | 27 | 38 | 50 | 66 | 80 |
+  |---|---|---|---|---|---|---|
+  | Flight time (s) | 0.50 | 0.50 | 0.65 | 0.70 | 0.80 | 0.85 |
+
+  End rows at 0 and 1000 in. repeat 0.50 and 0.85; outside 0 < d < 1000 it returns `INVALID` and the lead is
+  skipped. These are long, lobbed shots, so the lead is big: at 40 in/s the aim point moves about 26 in.
+  Plot: [shooter-shot-time.png](images/shooter-shot-time.png) (see "Graphs" under Shooter; the one-off
+  [shot-time-2026-11-19.png](images/shot-time-2026-11-19.png) is the same data). The steepest part is
+  27 → 38 in. (0.50 → 0.65 s). Values here are as measured; the file may have been hand-edited since.
 - **Shooting zone** (`TurretAim.isInZone()`, from the user, 2026-11-15): a 2 × 5 rectangle of tiles, the two
   rows behind the Cell being aimed at and five columns across starting at the left wall. In the team frame,
   for the red close Cell that's **x ≤ 120 and y ≤ 48** (`zoneWidth`, `zoneDepth`). The far Cell's zone is the
@@ -489,9 +518,9 @@ code, and ask before assigning the empty buttons.
 | RT | Intake in (see `IntakeControl` in section 8) | `IntakeControl` |
 | LT | Outtake: spinner and transfer full power backward | `IntakeControl` |
 | A | Toggle ramp | `IntakeControl` |
-| B | Toggle flywheel. Turning it off also turns auto shoot off and cancels the macro | `OuttakeControl` |
+| B | Toggle flywheel. Turning it off also turns auto shoot off and stops a manual shot | `OuttakeControl` |
 | X | Toggle auto shoot. Turning it on also turns the flywheel on | `OuttakeControl` |
-| Y | Shoot macro: flywheel on, wait for speed, then fire no matter what | `OuttakeControl` |
+| Y (hold) | Manual shot: flywheel on, fires while held once at speed, stops when let go | `OuttakeControl` |
 | D-pad down | Switch the target Cell (close ↔ far, starts on close). Only gates auto shoot | `OuttakeControl` |
 
 **Gamepad 2**
@@ -520,8 +549,11 @@ code, and ask before assigning the empty buttons.
   until the count reaches 0, the robot leaves the zone, the target Cell is switched away, or auto shoot is
   turned off. RPM and turret aren't
   checked again mid-dump, because the RPM dips after every ball.
-- **Shoot macro (Y)** ignores the ball count, the zone, and the turret. It turns the flywheel on, waits for
-  speed, then fires for `shootMacroMs` (1500 ms, a guess to tune). The flywheel stays on afterward.
+- **Manual shot (hold Y)** (changed 2026-11-21 from a timed macro; `shootMacroMs` is gone) ignores the ball
+  count, the zone, and the turret. Pressing Y turns the flywheel on; while Y is held it starts firing as soon as
+  the flywheel is within `rpmTolerance`, and keeps firing (RPM not rechecked) until Y is let go or the flywheel
+  is turned off. The flywheel stays on afterward. Done with an `EdgeDetector` that has both a press and a
+  release action (`connect(supplier, onPress, onRelease)`).
 - "Firing" only sets `isFiring()`. `IntakeControl` opens the blocker and runs the feed while it's true, so
   `OuttakeControl` must update before `IntakeControl` (MainTeleOp's control order).
 - The alliance is **hard-coded to red** for now (`new TurretAim(Alliance.RED)`, with a TODO).
@@ -578,6 +610,10 @@ code, and ask before assigning the empty buttons.
 - `MainTeleOp`'s running telemetry is trimmed (user, 2026-11-15, "for now") to the pose, `OuttakeControl`, and
   `IntakeControl` only. Vision, drive/`DriveControl`, and the loop/drive/mechanism timing (ms) were removed;
   the timing code is in git history if it's wanted back. Init telemetry is unchanged.
+  **Added 2026-11-19 (shoot on the move, step 1):** `Velocity x / y`, `Speed` (in/s), and `Travel dir / heading`
+  from `follower.velocity()`, to check the velocity is field-frame and see how noisy it is at rest. Also from
+  `OuttakeControl`: `Distance (in)` (turret pivot to the real Cell) and `Lead` (flight time, how far the aim
+  point moved, and the table distance; or "stopped" / "off (Panels)"). The `Aim` line's distance is the real one.
 
 ## 13. Merge of `dev` into `feature/Shooting` (2026-11-10)
 
@@ -608,13 +644,26 @@ branch's shooter behavior**, so where the two differed:
 
 - The new MainTeleOp (2026-11-15) has **only been unit-tested, not run on the robot**. Things to watch there:
   whether a 5th ball can still get pulled in at 30% (the limit is 4), whether the last ball clears before the
-  blocker closes, and whether `shootMacroMs` is long enough.
+  blocker closes.
 - MainTeleOp placeholders: the alliance is hard-coded to red, and reset point 2 is the start corner.
 - The ball count read 4 all the time on the robot (section 8, beam sensors). The sensor ports were fixed
   2026-11-17; recheck with Intake Sensor Test, and confirm `getState()` true really means blocked.
-- The `ShooterData` tables cover 12.8–87.5 in. (ten rows, 2026-11-17), which spans the shooting zone, but they dip
-  at 48.5 → 54.6 in. where two runs meet (section 8). Only the red close Cell has been measured; the far Cell
+- The `ShooterData` tables cover 12.8–87.5 in. (ten rows, 2026-11-17), which spans the shooting zone. The measured
+  values dipped at 48.5 → 54.6 in. where two runs meet; the user has since edited the 48.5 row (section 8). Only the red close Cell has been measured; the far Cell
   and blue are untested. The user is still collecting shot data and Cell positions.
+- **Shoot on the move (started 2026-11-19).** Reviewed last year's version: `Outtake.computeLeadAdjustedVector`
+  and `ShooterData.ShotTimeLUT` in the 2025 repo, branch `VF3LIX`. It aims the turret and picks RPM/hood for a
+  "virtual target" = Cell − robot velocity × flight time, looping a few times because flight time depends on
+  distance. The math is right, but its flight-time table was borrowed from another team (TurtleWalkers) and
+  isn't monotonic, its velocity deadband (`isRobotMovingForLead`) was never called, and it ignores delay.
+  Plan agreed with the user, one step at a time: (1) check `follower.velocity()` is field-frame and how noisy it
+  is at rest (MainTeleOp telemetry, added; **done 2026-11-19: field-frame confirmed on the robot, and the noise at
+  rest is negligible**, so no rotation is needed and the deadband can be small); (2) measure our flight times with
+  slow-motion video and add a shot-time table to `ShooterData` (**done 2026-11-19**); (3) add lead to `TurretAim`
+  with Panels `leadEnabled`, a speed deadband, and a `leadScale` multiplier, used by MainTeleOp (**done
+  2026-11-19, unit-tested only, not run on the robot**; see section 8, Turret); (4) tune by shooting while
+  driving sideways, slowly first; (5) maybe a delay look-ahead and a top speed for auto shoot. Pedro 3.x: `follower.velocity()` gives `vx`, `vy` (in/s) and `omega`, from the Pinpoint's
+  `getVelX/getVelY`.
 - Nothing reads HuskyLens results in game logic yet (open/flipped hive side).
 - No real autonomous routines or measured field poses.
 - Turret: top speed is unmeasured (the user will measure it), and the analog encoder isn't used.
