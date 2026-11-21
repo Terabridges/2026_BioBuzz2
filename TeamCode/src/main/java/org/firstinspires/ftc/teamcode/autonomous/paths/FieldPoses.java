@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.autonomous.paths;
 
+import com.pedropathing.api.PoseFactory;
 import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.config.RobotGeometry;
@@ -51,6 +52,21 @@ public final class FieldPoses {
                 : RobotGeometry.robotHalfLength;
         return new Pose(x, y, Math.toRadians(far ? -90 : 90));
     }
+
+    //---------------- Path Poses ------------------------
+    private final PoseFactory poseFactory = PoseFactory.degrees();
+    public final Pose start = poseFactory.of(31, 7.25, -90);
+    public final Pose startToGarden = poseFactory.of(8.5, 8.5, 270);
+    public final Pose startToGardenControl1 = poseFactory.of(19.5, 21.0007, 0);
+    public final Pose gardenToApproachRearHive = poseFactory.of(43, 111.5, -159.3045);
+    public final Pose gardenToApproachRearHiveControl1 = poseFactory.of(8.5, 24.5, 0);
+    public final Pose gardenToApproachRearHiveControl2 = poseFactory.of(40.25, 56.5, 0);
+    public final Pose gardenToApproachRearHiveControl3 = poseFactory.of(20.5, 103, 0);
+    public final Pose approachRearHiveToScoreRearHiveAndApproachRearFlowerStart = poseFactory.of(43, 111.5, 90);
+    public final Pose approachRearHiveToScoreRearHiveAndApproachRearFlower = poseFactory.of(48, 118, 90);
+    public final Pose approachRearFlowerToIntakeRearFlowerStart = poseFactory.of(48, 118, 90);
+    public final Pose approachRearFlowerToIntakeRearFlower = poseFactory.of(48, 132, 90);
+    public final Pose rearFlowerToPark = poseFactory.of(16, 114.5, 90);
 
     private FieldPoses() {}
 }
