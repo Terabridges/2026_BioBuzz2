@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.autonomous.paths;
 
 import com.pedropathing.math.Pose;
+import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.config.RobotGeometry;
 
 /**
@@ -42,6 +43,23 @@ public final class FieldPoses {
      */
     public static final Pose AUDIENCE_LEFT_CORNER_START = new Pose(
             RobotGeometry.robotHalfWidth, RobotGeometry.robotHalfLength, Math.toRadians(90));
+
+    /**
+     * Robot-center pose in a corner on the alliance's side wall (red = left, blue = right, seen from the
+     * audience: the same sides as each alliance's hive). Close = the audience-wall corner, back against the
+     * audience wall, facing +Y. Far = the rear-wall corner, back against the rear wall, facing -Y.
+     * Either way the robot faces away from the wall behind it. Used for TeleOp pose resets.
+     * Red close is the same pose as {@link #AUDIENCE_LEFT_CORNER_START}.
+     */
+    public static Pose allianceCorner(Alliance alliance, boolean far) {
+        double x = alliance == Alliance.RED
+                ? RobotGeometry.robotHalfWidth
+                : FIELD_SIZE_INCHES - RobotGeometry.robotHalfWidth;
+        double y = far
+                ? FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength
+                : RobotGeometry.robotHalfLength;
+        return new Pose(x, y, Math.toRadians(far ? -90 : 90));
+    }
 
     /** Center of the fixed frame, not a CELL opening or a traversable waypoint. */
     public static final Pose HIVE_FRAME_CENTER =

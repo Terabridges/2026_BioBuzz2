@@ -489,8 +489,21 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 
 ### Lights
 
-- `light_left` and `light_right` are servo-PWM lights (`setLights(pos)`). They aren't wired to any
-  behavior yet: `OuttakeControl.updateLights()` is empty.
+- `light_left` and `light_right` are goBILDA RGB indicator lights on servo ports: the servo position picks the
+  color (`setLights(pos)` sets both). **Ball-count lights (user, 2026-11-21):** `OuttakeControl.updateLights()`
+  sets them every loop from `spinner.getBallCount()`: **0 = off, 1–3 = orange, 4 = green** (`lightColorFor`,
+  unit-tested in `OuttakeLightsTest`). Telemetry line `Lights`. So they're only as right as the ball count (see
+  the beam-sensor notes in Intake).
+- Colors are `@Configurable` in `Lights`: `OFF` 0.0, `ORANGE` 0.333, `GREEN` 0.500. goBILDA's chart runs in
+  rainbow order: 0.277 red, 0.333 orange, 0.388 yellow, 0.444 sage, 0.500 green, 0.555 azure, 0.611 blue,
+  0.722 violet, 1.0 white. It started as last year's yellow 0.388 / green 0.475 (2025 `Lights.java`, `VF3LIX`),
+  but on the robot **yellow looked too much like green** (user, 2026-11-21), so 1–3 became orange and green moved
+  to true green, twice as far apart. Orange vs green is hard for red-green colorblind drivers; blue or white
+  would be the swap for 1–3 if that matters. `Lights` only writes a light when its color changes, and `init()`
+  turns them off.
+- Mike's branch `origin/feature/migrateVisionToIVY` (`57fb2ba`, "lights", not merged) has its own
+  `Lights.setLightsAuto(intake, outtake)`: red on a shooter fault, blue at 4 balls and at speed, plus a
+  `Shooter.hasFaultOrTimeout`. Merging it will conflict with this in `Lights` and `OuttakeControl`.
 
 ### Vision (`Vision`, singleton)
 
@@ -534,12 +547,23 @@ code, and ask before assigning the empty buttons.
 
 | Input | Action | Class |
 | --- | --- | --- |
-| A | Reset the pose to reset point 1 = the start corner (7.58, 8.19) 90° | `MainTeleOp` |
-| X | Reset the pose to reset point 2. **Placeholder:** the same corner until the team picks a spot | `MainTeleOp` |
+| Start | Switch alliance red ↔ blue, in INIT or during the match | `MainTeleOp` |
+| X | Reset the pose: **close corner** (alliance side wall, back to the audience wall, facing +y, 90°) | `MainTeleOp` |
+| A | Reset the pose: **far corner** (alliance side wall, back to the rear wall, facing −y, −90°) | `MainTeleOp` |
 | D-pad up / down | Hood offset + / - 0.01 | `OuttakeControl` |
 | D-pad left / right | Turret offset + / - 1° (left = counterclockwise) | `OuttakeControl` |
 | RB / LB | RPM offset + / - 25 | `OuttakeControl` |
 | B | Clear all three offsets | `OuttakeControl` |
+
+**Alliance (user, 2026-11-21):** gamepad 2 Start switches it, in INIT (shown at the top of init telemetry) or
+during the match (top of running telemetry). MainTeleOp keeps it in a `private static`, so it's **remembered
+between runs until the Robot Controller app restarts**; it starts red. It goes to `OuttakeControl.setAlliance`
+(→ `TurretAim`: which hive, which zone) and the reset corners. It isn't taken from autonomous yet, and the
+no-auto start pose is still the red (audience-left) corner whatever the alliance.
+
+**Reset corners (user, 2026-11-21)** come from `FieldPoses.allianceCorner(alliance, far)`, robot center from
+`RobotGeometry`: red = left wall x 7.58, blue = right wall x 136.42; close y 8.19, far y 135.81. Red close is
+`AUDIENCE_LEFT_CORNER_START`. Pedro stores −90° as 270°.
 
 ### How shooting works (`OuttakeControl`, `@Configurable`)
 
@@ -563,7 +587,8 @@ code, and ask before assigning the empty buttons.
   release action (`connect(supplier, onPress, onRelease)`).
 - "Firing" only sets `isFiring()`. `IntakeControl` opens the blocker and runs the feed while it's true, so
   `OuttakeControl` must update before `IntakeControl` (MainTeleOp's control order).
-- The alliance is **hard-coded to red** for now (`new TurretAim(Alliance.RED)`, with a TODO).
+- The alliance starts red (`new TurretAim(Alliance.RED)`); `setAlliance()` changes it (MainTeleOp: gamepad 2
+  Start).
 - Telemetry shows what auto shoot is waiting on (no balls, wrong half for the target Cell, not in zone,
   flywheel speed, or turret).
 
@@ -652,7 +677,8 @@ branch's shooter behavior**, so where the two differed:
 - The new MainTeleOp (2026-11-15) has **only been unit-tested, not run on the robot**. Things to watch there:
   whether a 5th ball can still get pulled in at 30% (the limit is 4), whether the last ball clears before the
   blocker closes.
-- MainTeleOp placeholders: the alliance is hard-coded to red, and reset point 2 is the start corner.
+- MainTeleOp: the alliance is picked by hand (gamepad 2 Start), not passed from autonomous, and the no-auto
+  start pose is always the red corner.
 - The ball count read 4 all the time on the robot (section 8, beam sensors). The sensor ports were fixed
   2026-11-17; recheck with Intake Sensor Test, and confirm `getState()` true really means blocked.
 - The `ShooterData` tables cover 12.8–87.5 in. (ten rows, 2026-11-17), which spans the shooting zone. The measured
@@ -674,7 +700,7 @@ branch's shooter behavior**, so where the two differed:
 - Nothing reads HuskyLens results in game logic yet (open/flipped hive side).
 - No real autonomous routines or measured field poses.
 - Turret: top speed is unmeasured (the user will measure it), and the analog encoder isn't used.
-- Hood direction is unverified. Lights aren't used.
+- Hood direction is unverified. The new light colors (0.333 orange, 0.500 green) haven't been checked on the robot.
 - `config/` is empty, and the tuning constants are scattered across subsystems.
 - `actions/StateMachines.java` is empty, and StateFactory is unused.
 - Teach the CI test workflow to trigger on pushes to `main`/`dev` instead of `master`.

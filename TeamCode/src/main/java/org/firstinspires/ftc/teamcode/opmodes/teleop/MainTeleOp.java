@@ -7,6 +7,7 @@ import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
@@ -30,7 +31,8 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  *   Y         manual shot: fires while held          OuttakeControl
  *   D-pad down  switch target Cell (close / far)     OuttakeControl
  * Gamepad 2
- *   A / X     reset the pose at reset point 1 / 2    here
+ *   Start     switch alliance (red / blue), in INIT or during the match   here
+ *   X / A     reset the pose: close / far corner     here
  *   D-pad, bumpers, B    shot offsets                OuttakeControl
  * </pre>
  */
@@ -50,12 +52,6 @@ public class MainTeleOp extends OpMode {
     public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
     public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
-    // Gamepad 2 pose resets, for when odometry drifts: put the robot on the spot, then press the button.
-    // Reset point 1 (A) is the start pose above.
-    // TODO pick the real spot for reset point 2 (X). Until then it's the start corner too
-    public static double reset2X = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();
-    public static double reset2Y = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();
-    public static double reset2HeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
     private Robot robot;
     private DriveManager drive;
@@ -66,8 +62,17 @@ public class MainTeleOp extends OpMode {
     private JoinedTelemetry joinedTelemetry;
     private long lastTelemetry;
 
-    private final EdgeDetector resetPose1 = new EdgeDetector(() -> setPose(startX, startY, startHeadingDeg));
-    private final EdgeDetector resetPose2 = new EdgeDetector(() -> setPose(reset2X, reset2Y, reset2HeadingDeg));
+    // Our alliance: the hive the turret aims at, its shooting zone, and which wall the reset corners are on.
+    // Gamepad 2 Start switches it, in INIT or during the match. It's static so it's remembered for the next
+    // run (until the Robot Controller app restarts), so it only needs setting once per event, not every match
+    private static Alliance alliance = Alliance.RED;
+    private final EdgeDetector switchAlliance = new EdgeDetector(this::switchAlliance);
+
+    // Gamepad 2 pose resets, for when odometry drifts: drive into the corner on our alliance's side wall,
+    // back against the end wall, then press. X = close corner (audience wall), A = far corner (rear wall).
+    // The alliance is the one the turret aims for
+    private final EdgeDetector resetClose = new EdgeDetector(() -> resetToCorner(false));
+    private final EdgeDetector resetFar = new EdgeDetector(() -> resetToCorner(true));
 
     @Override public void init() {
         drive = new DriveManager(DRIVE_BACKEND);
@@ -77,6 +82,7 @@ public class MainTeleOp extends OpMode {
         // The pose and velocity are only asked for after Start, once the drive is running
         outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(),
                 () -> drive.follower().velocity(), gamepad1, gamepad2);
+        outtakeControl.setAlliance(alliance);
         intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
         // Outtake goes before intake: it decides whether to fire, and the intake feeds the balls when it does
         mechanismControls = new Control[]{
@@ -88,10 +94,12 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void init_loop() {
+        switchAlliance.update(gamepad2.start);
         addInitTelemetry();
     }
 
     private void addInitTelemetry() {
+        telemetry.addData("Alliance", "%s (gamepad 2 Start to switch)", alliance);
         drive.addTelemetry(telemetry);
         telemetry.addData("Rates", USE_RATES);
         telemetry.addData("Field Centric", START_FIELD_CENTRIC);
@@ -112,8 +120,9 @@ public class MainTeleOp extends OpMode {
     @Override public void loop() {
         long now = System.nanoTime();
         // Apply driving before potentially slow mechanism/camera hardware reads.
-        resetPose1.update(gamepad2.a);
-        resetPose2.update(gamepad2.x);
+        switchAlliance.update(gamepad2.start);
+        resetClose.update(gamepad2.x);
+        resetFar.update(gamepad2.a);
         driveControl.update();
         drive.update();
         for (Control control : mechanismControls) control.update();
@@ -121,6 +130,7 @@ public class MainTeleOp extends OpMode {
         // Only the pose, outtake and intake for now (no vision, drive or loop timing)
         if (now - lastTelemetry >= 200_000_000L) {
             Pose pose = drive.follower().pose();
+            joinedTelemetry.addData("Alliance", alliance);
             joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg",
                     pose.x(), pose.y(), Math.toDegrees(pose.heading()));
             addVelocityTelemetry(pose);
@@ -156,6 +166,15 @@ public class MainTeleOp extends OpMode {
         } else {
             joinedTelemetry.addData("Travel dir / heading", "(too slow) / %.0f deg", Math.toDegrees(pose.heading()));
         }
+    }
+
+    private void switchAlliance() {
+        alliance = alliance == Alliance.RED ? Alliance.BLUE : Alliance.RED;
+        outtakeControl.setAlliance(alliance);
+    }
+
+    private void resetToCorner(boolean far) {
+        drive.follower().setPose(FieldPoses.allianceCorner(alliance, far));
     }
 
     private void setPose(double x, double y, double headingDeg) {

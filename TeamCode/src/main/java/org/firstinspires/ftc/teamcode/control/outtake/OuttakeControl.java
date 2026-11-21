@@ -65,7 +65,7 @@ public class OuttakeControl implements Control {
     private final Supplier<Velocity> velocity; // the robot's field velocity (in/s), for leading shots on the move
 
     private final ShooterData shooterData = new ShooterData();
-    // TODO pick the alliance (from autonomous, or during init). Red only for now
+    // Red until the OpMode picks one with setAlliance (MainTeleOp: gamepad 2 Start)
     private final TurretAim turretAim = new TurretAim(Alliance.RED);
 
     private boolean flywheelOn = false;   // B
@@ -213,6 +213,16 @@ public class OuttakeControl implements Control {
         }
     }
 
+    /** The alliance being aimed for. MainTeleOp's pose resets use it too, so both always agree. */
+    public Alliance getAlliance() {
+        return turretAim.getAlliance();
+    }
+
+    /** Which alliance's hive to aim at and shoot from the zone of. */
+    public void setAlliance(Alliance alliance) {
+        turretAim.setAlliance(alliance);
+    }
+
     /** True while balls should be fed into the flywheel. IntakeControl opens the blocker and feeds. */
     public boolean isFiring() {
         return manualFiring || autoFiring;
@@ -229,8 +239,22 @@ public class OuttakeControl implements Control {
         return "waiting: turret";
     }
 
+    // Shows how full the robot is: off = empty, orange = 1 to 3 balls, green = full (4, the most allowed)
     private void updateLights(){
+        lights.setLights(lightColorFor(spinner.getBallCount()));
+    }
 
+    /** Servo position for the lights at this ball count. */
+    static double lightColorFor(int ballCount) {
+        if (ballCount <= 0) return Lights.OFF;
+        if (ballCount >= 4) return Lights.GREEN;
+        return Lights.ORANGE;
+    }
+
+    private static String lightName(int ballCount) {
+        if (ballCount <= 0) return "off";
+        if (ballCount >= 4) return "green";
+        return "orange";
     }
 
     //---------------- Interface Methods ----------------
@@ -258,6 +282,7 @@ public class OuttakeControl implements Control {
             telemetry.addData("Lead", TurretAim.leadEnabled ? "stopped" : "off (Panels)");
         }
         telemetry.addData("Flywheel", flywheelOn ? (shooter.isAtRPM(rpmTolerance) ? "READY" : "spinning up") : "off");
+        telemetry.addData("Lights", "%s (%d balls)", lightName(spinner.getBallCount()), spinner.getBallCount());
         telemetry.addData("Target Cell", targetCell);
         telemetry.addData("Auto Shoot", autoShootStatus());
         telemetry.addData("Manual Shot (Y)", manualFiring ? "FIRING" : manualHeld ? "waiting: flywheel speed" : "off");
