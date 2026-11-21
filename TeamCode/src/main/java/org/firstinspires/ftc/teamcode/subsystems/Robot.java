@@ -35,15 +35,24 @@ public class Robot {
     }
 
     public void update() {
+        outtake.updateShooting(intake.spinner.getBallCount());
+        intake.updateCommands(outtake.isFiring());
         for (Subsystem s : subsystems) {
             s.update();
         }
     }
 
     public void stop() {
+        RuntimeException failure = null;
         for (Subsystem s : subsystems) {
-            s.stop();
+            try {
+                s.stop();
+            } catch (RuntimeException stopFailure) {
+                if (failure == null) failure = stopFailure;
+                else if (failure != stopFailure) failure.addSuppressed(stopFailure);
+            }
         }
+        if (failure != null) throw failure;
     }
 
     public void logPsiKitData() {

@@ -36,6 +36,7 @@ public abstract class BaseAutoOpMode extends OpMode {
     protected abstract AutoRoutine createRoutine(AutoContext context);
 
     protected AutoContext.Mode executionMode() { return AutoContext.Mode.COMPETITION; }
+    protected boolean pathTestAdvanceDown() { return false; }
 
     /** Path-only diagnostics override this to avoid initializing unrelated hardware. */
     protected boolean usesRobot() { return executionMode() != AutoContext.Mode.PATH_TEST; }
@@ -43,7 +44,9 @@ public abstract class BaseAutoOpMode extends OpMode {
     protected Follower createFollower() { return Constants.create(hardwareMap); }
     protected void resetSelection() {}
     protected void updateSelection() {}
-    protected void addSelectionTelemetry() {}
+    protected void addSelectionTelemetry() {
+        telemetry.addData("SELECTED AUTO", config.selectionLabel());
+    }
 
     @Override public final void init() {
         if (follower != null) stop();
@@ -60,6 +63,7 @@ public abstract class BaseAutoOpMode extends OpMode {
         followerManager = new FollowerManager(hardwareMap, follower);
         if (executionMode() != AutoContext.Mode.PATH_TEST && usesRobot()) {
             robot = createRobot();
+            robot.outtake.setMotionSource(follower::pose, follower::velocity);
             robot.toInit();
         }
         config = selectedConfig();
@@ -82,7 +86,8 @@ public abstract class BaseAutoOpMode extends OpMode {
         // Selection is frozen from here onward; nothing moves in init_loop.
         try {
             follower.setPose(config.startPose);
-            routine = createRoutine(new AutoContext(config, follower, robot, executionMode()));
+            routine = createRoutine(new AutoContext(
+                    config, follower, robot, executionMode(), this::pathTestAdvanceDown));
             autoTimer.reset();
             routine.start();
             started = true;
@@ -132,21 +137,25 @@ public abstract class BaseAutoOpMode extends OpMode {
                 if (followerManager != null) followerManager.stop();
             }
         }
-        if (started && !failed && executionMode() == AutoContext.Mode.COMPETITION) {
+        if (started && !failed && config.allowPoseHandoff && executionMode() == AutoContext.Mode.COMPETITION) {
             followerManager.handoffToTeleOp();
         }
     }
 
     private void showTelemetry() {
-        telemetry.addData("Auto", config.selectionLabel());
+        if (routine == null) {
+            addSelectionTelemetry();
+            telemetry.update();
+            return;
+        }
+        telemetry.addData("SELECTED AUTO", config.selectionLabel());
         telemetry.addData("Mode", executionMode());
-        telemetry.addData("State", routine == null ? "Ready" : routine.state());
-        telemetry.addData("Result", routine == null ? AutoRoutine.Result.READY : routine.result());
-        telemetry.addData("Elapsed (s)", routine == null ? 0.0 : autoTimer.seconds());
+        telemetry.addData("State", routine.state());
+        telemetry.addData("Result", routine.result());
+        telemetry.addData("Elapsed (s)", autoTimer.seconds());
         Pose pose = follower.pose();
         telemetry.addData("Pose (in, deg)", "%.1f, %.1f, %.1f",
                 pose.x(), pose.y(), Math.toDegrees(pose.heading()));
-        if (routine == null) addSelectionTelemetry();
         telemetry.update();
     }
 }

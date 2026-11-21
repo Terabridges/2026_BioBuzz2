@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
+import org.firstinspires.ftc.teamcode.config.RobotGeometry;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.subsystems.drive.DriveManager;
@@ -45,8 +46,10 @@ public class MainTeleOp extends OpMode {
     private static final boolean USE_RATES = false;
     private static final boolean START_FIELD_CENTRIC = false;
 
-    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();   // 7.58 in.
-    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
+    //---------------- Tunable (Panels) ----------------
+    // Fresh follower starts in the audience-left corner with the wall offset on both axes.
+    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x() + RobotGeometry.wall;
+    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y() + RobotGeometry.wall;
     public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
     public static double imuCalibrateSec = 0.5;
 
@@ -73,11 +76,11 @@ public class MainTeleOp extends OpMode {
         drive.initialize(hardwareMap, true);
 
         robot = new Robot(hardwareMap, telemetry);
-        outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(),
-                () -> drive.follower().velocity(), gamepad1, gamepad2);
+        // The pose and velocity are only asked for after Start, once the drive is running
+        robot.outtake.setMotionSource(() -> drive.follower().pose(), () -> drive.follower().velocity());
+        outtakeControl = new OuttakeControl(robot.outtake, robot.intake.spinner, gamepad1, gamepad2);
         outtakeControl.setAlliance(alliance);
-        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
-
+        intakeControl = new IntakeControl(robot.intake, gamepad1);
         mechanismControls = new Control[]{
                 new VisionControl(robot.vision, gamepad1, gamepad2),
                 outtakeControl,

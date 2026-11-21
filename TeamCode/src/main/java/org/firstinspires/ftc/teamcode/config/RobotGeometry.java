@@ -6,6 +6,7 @@ public final class RobotGeometry {
     public static final double robotLength = 416.0 / 25.4;
     public static final double robotHalfWidth = robotWidth / 2.0;
     public static final double robotHalfLength = robotLength / 2.0;
+    public static final double wall = 1.0;
 
     private RobotGeometry() {}
 }

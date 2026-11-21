@@ -59,7 +59,7 @@ public class BaseAutoOpModeTest {
     }
 
     private static final class TestAuto extends BaseAutoOpMode {
-        final AutoConfig config = new AutoConfig("Test", Alliance.BLUE, StartSide.GARDEN, Pose.zero());
+        final AutoConfig config = new AutoConfig("Test", Alliance.BLUE, StartSide.REAR, Pose.zero());
         TestFollower follower;
         TestRoutine nextRoutine = new TestRoutine();
         AutoContext createdContext;

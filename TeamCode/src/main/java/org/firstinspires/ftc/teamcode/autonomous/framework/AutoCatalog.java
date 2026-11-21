@@ -1,12 +1,14 @@
 package org.firstinspires.ftc.teamcode.autonomous.framework;
 
-import java.util.Collections;
+import com.pedropathing.math.Pose;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.routines.DoNothingRoutine;
+import org.firstinspires.ftc.teamcode.autonomous.routines.TwoTipRoutine;
 
 /**
  * Register each strategy once; Auto Select and Auto Path Test use this same list.
@@ -14,7 +16,6 @@ import org.firstinspires.ftc.teamcode.autonomous.routines.DoNothingRoutine;
  * An entry pairs its configuration with a factory that creates a fresh routine.
  * Set requiresRobot to true when the routine uses mechanism actions.
  * The competition menu initializes Robot if any entry needs it; path-test mode never does.
- * Only Do Nothing is registered for each alliance/side until real routes are implemented.
  */
 public final class AutoCatalog {
     public static final class Entry {
@@ -34,15 +35,16 @@ public final class AutoCatalog {
     }
 
     public static final List<Entry> ENTRIES = Collections.unmodifiableList(Arrays.asList(
-            doNothing(Alliance.BLUE, StartSide.GARDEN),
-            doNothing(Alliance.BLUE, StartSide.LOADING),
-            doNothing(Alliance.RED, StartSide.GARDEN),
-            doNothing(Alliance.RED, StartSide.LOADING)
+            doNothing(Alliance.BLUE, StartSide.AUDIENCE, FieldPoses.BLUE_AUDIENCE_START),
+            doNothing(Alliance.BLUE, StartSide.REAR, FieldPoses.BLUE_REAR_START),
+            doNothing(Alliance.RED, StartSide.AUDIENCE, FieldPoses.RED_AUDIENCE_START),
+            new Entry(new AutoConfig("Two Tip", Alliance.RED, StartSide.AUDIENCE,
+                    FieldPoses.RED_AUDIENCE_START), true, TwoTipRoutine::new),
+            doNothing(Alliance.RED, StartSide.REAR, FieldPoses.RED_REAR_START)
     ));
 
-    private static Entry doNothing(Alliance alliance, StartSide side) {
-        // No driving takes place. This local origin is not a measured start for a real route.
-        return new Entry(new AutoConfig("Do Nothing", alliance, side, FieldPoses.TEST_START),
+    private static Entry doNothing(Alliance alliance, StartSide side, Pose startPose) {
+        return new Entry(new AutoConfig("Do Nothing", alliance, side, startPose, false),
                 false, context -> new DoNothingRoutine());
     }
     private AutoCatalog() {}

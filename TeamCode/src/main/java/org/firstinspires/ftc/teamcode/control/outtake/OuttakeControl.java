@@ -1,20 +1,16 @@
 package org.firstinspires.ftc.teamcode.control.outtake;
 
 import com.bylazar.configurables.annotations.Configurable;
-import com.pedropathing.math.Pose;
-import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.control.Control;
-import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Spinner;
-import org.firstinspires.ftc.teamcode.subsystems.outtake.Lights;
+import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Turret;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
-import org.firstinspires.ftc.teamcode.utility.shooterUtility.ShooterData;
 import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 
 import java.util.ArrayList;
@@ -42,55 +38,40 @@ import org.psilynx.psikit.core.Logger;
  *   B                    clear offsets
  * </pre>
  *
- * This class only decides when to fire. IntakeControl owns the blocker and the feed motors: it asks
- * {@link #isFiring()} every loop.
+ * Buttons send requests to Outtake. Intake handles the blocker and feed motors.
  */
 @Configurable
 public class OuttakeControl implements Control {
 
     //---------------- Tunable (Panels) ----------------
-    public static double rpmTolerance = 50;
-    public static double turretToleranceDeg = 3;
+    // How much one press on gamepad 2 changes each offset
     public static double rpmOffsetStep = 25;
     public static double hoodOffsetStep = 0.01;
     public static double turretOffsetStepDeg = 1;
 
     //---------------- Software ----------------
+    private final Outtake outtake;
     private final Shooter shooter;
     private final Turret turret;
-    private final Lights lights;
-    private final Spinner spinner;
-    private final Supplier<Pose> pose;
-    private final Supplier<Velocity> velocity;
-
-    private final ShooterData shooterData = new ShooterData();
-    private final TurretAim turretAim = new TurretAim(Alliance.RED);
-
-    private boolean flywheelOn = false;   // B
+    private final Spinner spinner;       // for the ball count
+    private final TurretAim turretAim;
     private boolean autoShoot = false;    // X
     private boolean manualHeld = false;   // Y is being held
-    private boolean manualFiring = false; // Y manual shot is feeding balls
-    private boolean autoFiring = false;   // auto shoot is feeding balls
-    private TurretAim.Cell targetCell = TurretAim.Cell.CLOSE;
 
     private double rpmOffset = 0;
     private double hoodOffset = 0;
     private double turretOffsetDeg = 0; // positive = counterclockwise (left)
 
-    private static final double HOOD_DEADBAND = 0.002;
-    private double lastHood = Double.NaN;
-
     private final List<Supplier<Boolean>> suppliers;
     private final List<Consumer<Boolean>> consumers;
 
     //---------------- Constructor ----------------
-    public OuttakeControl(Robot robot, Supplier<Pose> pose, Supplier<Velocity> velocity, Gamepad gp1, Gamepad gp2){
-        this.shooter = robot.outtake.shooter;
-        this.turret = robot.outtake.turret;
-        this.lights = robot.outtake.lights;
-        this.spinner = robot.intake.spinner;
-        this.pose = pose;
-        this.velocity = velocity;
+    public OuttakeControl(Outtake outtake, Spinner spinner, Gamepad gp1, Gamepad gp2){
+        this.outtake = outtake;
+        this.shooter = outtake.shooter;
+        this.turret = outtake.turret;
+        this.spinner = spinner;
+        this.turretAim = outtake.getAim();
 
         this.suppliers = new ArrayList<>();
         this.consumers = new ArrayList<>();
@@ -121,24 +102,27 @@ public class OuttakeControl implements Control {
 
     //---------------- Button Methods ----------------
     private void toggleFlywheel() {
-        flywheelOn = !flywheelOn;
-        if (!flywheelOn) {
-            autoShoot = false;
-            manualFiring = false;
-        }
+        outtake.setFlywheelEnabled(!outtake.isFlywheelEnabled());
+        if (!outtake.isFlywheelEnabled()) autoShoot = false;
     }
 
     private void toggleTargetCell() {
-        targetCell = targetCell == TurretAim.Cell.CLOSE ? TurretAim.Cell.FAR : TurretAim.Cell.CLOSE;
+        outtake.setTargetCell(outtake.getTargetCell() == TurretAim.Cell.CLOSE
+                ? TurretAim.Cell.FAR : TurretAim.Cell.CLOSE);
     }
 
     private void toggleAutoShoot() {
         autoShoot = !autoShoot;
-        if (autoShoot) flywheelOn = true;
+        if (autoShoot) {
+            outtake.setFlywheelEnabled(true);
+            outtake.requestFire();
+        } else {
+            outtake.stopFiring();
+        }
     }
 
     private void startManualShot() {
-        flywheelOn = true;
+        outtake.setFlywheelEnabled(true);
         manualHeld = true;
     }
 
@@ -157,83 +141,20 @@ public class OuttakeControl implements Control {
         }
     }
 
-    private void updateShooter() {
-        double distance = turretAim.getDistance();
-        double rpm = shooterData.getRPMVal(distance);
-        double hood = shooterData.getAngleVal(distance);
-        boolean valid = rpm != shooterData.INVALID && hood != shooterData.INVALID;
-
-        shooter.setTargetRPM(flywheelOn && valid ? rpm + rpmOffset : 0);
-
-        if (flywheelOn && valid) {
-            double wantedHood = hood + hoodOffset;
-            if (Double.isNaN(lastHood) || Math.abs(wantedHood - lastHood) > HOOD_DEADBAND) {
-                shooter.setHoodPos(wantedHood);
-                lastHood = wantedHood;
-            }
-        }
-    }
-
-    private void updateTurret() {
-        turret.aimAt(turretAim.getTurretAngle() + Math.toRadians(turretOffsetDeg));
-    }
-
-    private void updateFiring() {
-        boolean atRPM = shooter.isAtRPM(rpmTolerance);
-
-        // Y manual shot: while Y is held, start feeding once the flywheel is at speed, then keep feeding until
-        // Y is let go. Like auto shoot, the RPM isn't checked again once it starts, because it dips after every ball
-        if (!manualHeld || !flywheelOn) {
-            manualFiring = false;
-        } else if (atRPM) {
-            manualFiring = true;
-        }
-
-        // X auto shoot: starting needs everything lined up. Once it starts it keeps going until the balls
-        // are gone, because the RPM dips after every ball and checking it again would stop the dump halfway
-        // It only fires from the zone of the target Cell: in the zone AND the Cell on this half is the target
-        boolean canShoot = autoShoot && spinner.getBallCount() >= 1 && turretAim.isInZone()
-                && turretAim.getCell() == targetCell;
-        if (!canShoot) {
-            autoFiring = false;
-        } else if (atRPM && turret.isTurretNearTarget(turretToleranceDeg)) {
-            autoFiring = true;
-        }
-    }
-
-    /** The alliance being aimed for. MainTeleOp's pose resets use it too, so both always agree. */
-    public Alliance getAlliance() {
-        return turretAim.getAlliance();
-    }
-
     /** Which alliance's hive to aim at and shoot from the zone of. */
     public void setAlliance(Alliance alliance) {
-        turretAim.setAlliance(alliance);
-    }
-
-    /** True while balls should be fed into the flywheel. IntakeControl opens the blocker and feeds. */
-    public boolean isFiring() {
-        return manualFiring || autoFiring;
+        outtake.enableTracking(alliance);
     }
 
     private String autoShootStatus() {
         if (!autoShoot) return "off";
-        if (autoFiring) return "FIRING";
+        if (outtake.isAutomaticFiring()) return "FIRING";
         if (spinner.getBallCount() < 1) return "waiting: no balls";
+        TurretAim.Cell targetCell = outtake.getTargetCell();
         if (turretAim.getCell() != targetCell) return "waiting: on the " + turretAim.getCell() + " half, target is " + targetCell;
         if (!turretAim.isInZone()) return "waiting: not in zone";
-        if (!shooter.isAtRPM(rpmTolerance)) return "waiting: flywheel speed";
+        if (!outtake.isAtShotSpeed()) return "waiting: flywheel speed";
         return "waiting: turret";
-    }
-    
-    private void updateLights(){
-        lights.setLights(lightColorFor(spinner.getBallCount()));
-    }
-
-    static double lightColorFor(int ballCount) {
-        if (ballCount <= 0) return Lights.OFF;
-        if (ballCount >= 4) return Lights.GREEN;
-        return Lights.ORANGE;
     }
 
     private static String lightName(int ballCount) {
@@ -246,11 +167,8 @@ public class OuttakeControl implements Control {
     @Override
     public void update() {
         updateButtons();
-        turretAim.update(pose.get(), velocity.get());
-        updateShooter();
-        updateTurret();
-        updateFiring();
-        updateLights();
+        outtake.setManualFireRequested(manualHeld);
+        outtake.setShotOffsets(rpmOffset, hoodOffset, turretOffsetDeg);
     }
 
     @Override
@@ -263,11 +181,13 @@ public class OuttakeControl implements Control {
         } else {
             telemetry.addData("Lead", TurretAim.leadEnabled ? "stopped" : "off (Panels)");
         }
-        telemetry.addData("Flywheel", flywheelOn ? (shooter.isAtRPM(rpmTolerance) ? "READY" : "spinning up") : "off");
+        telemetry.addData("Flywheel", outtake.isFlywheelEnabled()
+                ? (outtake.isAtShotSpeed() ? "READY" : "spinning up") : "off");
         telemetry.addData("Lights", "%s (%d balls)", lightName(spinner.getBallCount()), spinner.getBallCount());
-        telemetry.addData("Target Cell", targetCell);
+        telemetry.addData("Target Cell", outtake.getTargetCell());
         telemetry.addData("Auto Shoot", autoShootStatus());
-        telemetry.addData("Manual Shot (Y)", manualFiring ? "FIRING" : manualHeld ? "waiting: flywheel speed" : "off");
+        telemetry.addData("Manual Shot (Y)", outtake.isManualFiring()
+                ? "FIRING" : manualHeld ? "waiting: flywheel speed" : "off");
         telemetry.addData("Aim", "%s Cell, %.1f in, in zone: %b",
                 turretAim.getCell(), turretAim.getRealDistance(), turretAim.isInZone());
         telemetry.addData("RPM target / current", "%.0f / %.0f", shooter.getTargetRPM(), shooter.getCurrentRPM());

@@ -43,7 +43,7 @@ public class IntakeDriveHoldTest extends OpMode {
         follower = followerManager.follower();
         robot = new Robot(hardwareMap, telemetry);
         visionControl = new VisionControl(robot.vision, gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2);
+        intakeControl = new IntakeControl(robot.intake, gamepad1);
         driveControl = new DriveHoldTestControl(new PedroDrive(follower), gamepad1);
 
         controls = new ArrayList<>(Arrays.asList(visionControl, intakeControl, driveControl));
