@@ -94,7 +94,14 @@ public class DriveBackendTest {
         new FollowerManager(map, follower).handoffToTeleOp();
         DriveManager drive = new DriveManager(DriveManager.Backend.PEDRO);
         Gamepad gamepad = new Gamepad();
-        drive.start(map, true);
+        drive.initialize(map, true);
+        assertTrue(drive.resumedFromAuto());
+        assertNull(follower.powers);
+        drive.update();
+        assertEquals(0, follower.updates);
+        assertThrows(IllegalStateException.class, drive::drive);
+        drive.start();
+        assertSame(follower, drive.follower());
         DriveControl control = new DriveControl(drive.drive(), gamepad, true, false);
         assertTrue(powers.isEmpty()); // No direct drivetrain was constructed.
         gamepad.left_stick_y = -1;

@@ -70,17 +70,23 @@ public class MainTeleOp extends OpMode {
 
     @Override public void init() {
         drive = new DriveManager(DRIVE_BACKEND);
-        robot = new Robot(hardwareMap, telemetry);
-        // The pose is only asked for after Start, once the drive (and its follower) exists
-        outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(), gamepad1, gamepad2);
-        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
-        // Outtake goes before intake: it decides whether to fire, and the intake feeds the balls when it does
-        mechanismControls = new Control[]{
-                new VisionControl(robot.vision, gamepad1, gamepad2),
-                outtakeControl,
-                intakeControl};
-        joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
-        addInitTelemetry();
+        try {
+            // A fresh Pinpoint calibrates here, before the turret centers at START.
+            drive.initialize(hardwareMap, true);
+            robot = new Robot(hardwareMap, telemetry);
+            outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(), gamepad1, gamepad2);
+            intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
+            // Outtake goes before intake: it decides whether to fire, and the intake feeds the balls when it does
+            mechanismControls = new Control[]{
+                    new VisionControl(robot.vision, gamepad1, gamepad2),
+                    outtakeControl,
+                    intakeControl};
+            joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
+            addInitTelemetry();
+        } catch (RuntimeException failure) {
+            stop();
+            throw failure;
+        }
     }
 
     @Override public void init_loop() {
@@ -92,14 +98,14 @@ public class MainTeleOp extends OpMode {
         telemetry.addData("Rates", USE_RATES);
         telemetry.addData("Field Centric", START_FIELD_CENTRIC);
         telemetry.addData("Start pose without auto", "(%.2f, %.2f) %.0f deg", startX, startY, startHeadingDeg);
-        telemetry.addLine("No auto first? Put the robot in the audience-left corner, facing away from the audience");
+        telemetry.addLine("Without auto, place the robot in the audience-left corner before INIT, facing away from the audience");
         telemetry.update();
     }
 
     @Override public void start() {
         try {
             robot.toInit();
-            drive.start(hardwareMap, true);
+            drive.start();
             // Aiming depends on the pose, so without one from autonomous the robot has to start at the start pose
             if (!drive.resumedFromAuto()) setPose(startX, startY, startHeadingDeg);
             driveControl = new DriveControl(drive.drive(), gamepad1, USE_RATES, START_FIELD_CENTRIC);
