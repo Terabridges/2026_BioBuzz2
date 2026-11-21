@@ -49,9 +49,8 @@ import org.psilynx.psikit.core.Logger;
 public class OuttakeControl implements Control {
 
     //---------------- Tunable (Panels) ----------------
-    public static double rpmTolerance = 50;       // RPM from target before a shot can start
-    public static double turretToleranceDeg = 3;  // turret degrees from its aim before an auto shot can start
-    // How much one press on gamepad 2 changes each offset
+    public static double rpmTolerance = 50;
+    public static double turretToleranceDeg = 3;
     public static double rpmOffsetStep = 25;
     public static double hoodOffsetStep = 0.01;
     public static double turretOffsetStepDeg = 1;
@@ -60,12 +59,11 @@ public class OuttakeControl implements Control {
     private final Shooter shooter;
     private final Turret turret;
     private final Lights lights;
-    private final Spinner spinner;       // for the ball count
-    private final Supplier<Pose> pose;   // the robot's field pose, from odometry
-    private final Supplier<Velocity> velocity; // the robot's field velocity (in/s), for leading shots on the move
+    private final Spinner spinner;
+    private final Supplier<Pose> pose;
+    private final Supplier<Velocity> velocity;
 
     private final ShooterData shooterData = new ShooterData();
-    // Red until the OpMode picks one with setAlliance (MainTeleOp: gamepad 2 Start)
     private final TurretAim turretAim = new TurretAim(Alliance.RED);
 
     private boolean flywheelOn = false;   // B
@@ -73,19 +71,14 @@ public class OuttakeControl implements Control {
     private boolean manualHeld = false;   // Y is being held
     private boolean manualFiring = false; // Y manual shot is feeding balls
     private boolean autoFiring = false;   // auto shoot is feeding balls
-    // The Cell to shoot at, picked by the driver because the robot can't tell which one the hive has tipped
-    // open. The turret still aims at the Cell on the robot's own half; this only decides whether auto shoot
-    // may fire there (D-pad down)
     private TurretAim.Cell targetCell = TurretAim.Cell.CLOSE;
 
     private double rpmOffset = 0;
     private double hoodOffset = 0;
     private double turretOffsetDeg = 0; // positive = counterclockwise (left)
 
-    // The table's hood value changes a tiny bit every time odometry moves. Only send it to the servo when it
-    // has moved more than this, so the servo isn't rewritten every loop
     private static final double HOOD_DEADBAND = 0.002;
-    private double lastHood = Double.NaN; // last hood position asked for
+    private double lastHood = Double.NaN;
 
     private final List<Supplier<Boolean>> suppliers;
     private final List<Consumer<Boolean>> consumers;
@@ -104,10 +97,8 @@ public class OuttakeControl implements Control {
 
         connect(() -> gp1.b, this::toggleFlywheel);
         connect(() -> gp1.x, this::toggleAutoShoot);
-        // Y: pressing starts the manual shot, letting go stops it
         connect(() -> gp1.y, this::startManualShot, () -> manualHeld = false);
         connect(() -> gp1.dpad_down, this::toggleTargetCell);
-
         connect(() -> gp2.dpad_up, () -> hoodOffset += hoodOffsetStep);
         connect(() -> gp2.dpad_down, () -> hoodOffset -= hoodOffsetStep);
         connect(() -> gp2.dpad_left, () -> turretOffsetDeg += turretOffsetStepDeg);
@@ -129,7 +120,6 @@ public class OuttakeControl implements Control {
     }
 
     //---------------- Button Methods ----------------
-    // Turning the flywheel off also cancels any shooting, so nothing gets fed into a stopped flywheel
     private void toggleFlywheel() {
         flywheelOn = !flywheelOn;
         if (!flywheelOn) {
@@ -152,7 +142,6 @@ public class OuttakeControl implements Control {
         manualHeld = true;
     }
 
-    /** Gamepad 2 B, and MainTeleOp's corner pose resets. */
     public void clearOffsets() {
         rpmOffset = 0;
         hoodOffset = 0;
@@ -168,7 +157,6 @@ public class OuttakeControl implements Control {
         }
     }
 
-    // RPM and hood from the tables for the current distance, plus the gamepad 2 offsets
     private void updateShooter() {
         double distance = turretAim.getDistance();
         double rpm = shooterData.getRPMVal(distance);
@@ -186,7 +174,6 @@ public class OuttakeControl implements Control {
         }
     }
 
-    // The turret tracks the Cell all the time, so it's already there when it's time to shoot
     private void updateTurret() {
         turret.aimAt(turretAim.getTurretAngle() + Math.toRadians(turretOffsetDeg));
     }
@@ -229,7 +216,6 @@ public class OuttakeControl implements Control {
         return manualFiring || autoFiring;
     }
 
-    // Says what auto shoot is waiting on, so the drivers can tell why it isn't firing
     private String autoShootStatus() {
         if (!autoShoot) return "off";
         if (autoFiring) return "FIRING";
@@ -239,13 +225,11 @@ public class OuttakeControl implements Control {
         if (!shooter.isAtRPM(rpmTolerance)) return "waiting: flywheel speed";
         return "waiting: turret";
     }
-
-    // Shows how full the robot is: off = empty, orange = 1 to 3 balls, green = full (4, the most allowed)
+    
     private void updateLights(){
         lights.setLights(lightColorFor(spinner.getBallCount()));
     }
 
-    /** Servo position for the lights at this ball count. */
     static double lightColorFor(int ballCount) {
         if (ballCount <= 0) return Lights.OFF;
         if (ballCount >= 4) return Lights.GREEN;
@@ -262,8 +246,6 @@ public class OuttakeControl implements Control {
     @Override
     public void update() {
         updateButtons();
-        // With the velocity, TurretAim leads the shot: the turret and the RPM/hood tables use a target moved
-        // against the robot's motion (TurretAim.leadEnabled turns it off in Panels)
         turretAim.update(pose.get(), velocity.get());
         updateShooter();
         updateTurret();
@@ -273,8 +255,7 @@ public class OuttakeControl implements Control {
 
     @Override
     public void addTelemetry(Telemetry telemetry) {
-        // Turret pivot to the real Cell, inches. Its own line so it's easy to read off
-        telemetry.addData("Distance (in)", "%.1f", turretAim.getRealDistance());
+        telemetry.addData("Distance (in)", "%.1f", turretAim.getRealDistance()); // Turret pivot to the real Cell, inches.
         // While moving, the tables use the distance to the led aim point instead
         if (turretAim.isLeading()) {
             telemetry.addData("Lead", "%.2f s, aim moved %.1f in, table distance %.1f in",

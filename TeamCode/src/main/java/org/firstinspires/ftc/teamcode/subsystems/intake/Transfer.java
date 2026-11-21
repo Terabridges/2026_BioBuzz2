@@ -14,7 +14,6 @@ public class Transfer implements Subsystem {
     //---------------- Hardware ----------------
     private DcMotorEx transfer;
     private Servo blocker;
-    //TODO figure out which distance sensors we are using and implement them
 
     //---------------- Software ----------------
     private final Utility util = new Utility();

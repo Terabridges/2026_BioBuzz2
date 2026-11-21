@@ -13,21 +13,19 @@ public class Ramp implements Subsystem {
     private Servo rampRight;
     private Utility util;
 
-
     //---------------- Software ----------------
-    //todo maybe change offset since he switched ramp
     private final double rightRampOffset = 0.024;
     private final double rampStart = 0.5;
     private boolean negativeOffset;
     private double rampPos = rampStart;
+
     private boolean rampChanged = false;
-    // Limits shared by both servos: left 0.47 - 0.75, right (left + offset) 0.494 - 0.774
-    private final double rampMinPos = 0.47; //todo maybe change because legnth of ramp got longer
-    private final double rampMaxPos = 0.774;
-    // Left servo positions, right gets the offset added
-    private final double rampDownPos = 0.475; // 0.47
-    private final double rampUpPos = 0.685; //0.73
     private boolean rampUp = false;
+
+    private final double rampMinPos = 0.475;
+    private final double rampMaxPos = 0.7;
+    private final double rampDownPos = 0.475;
+    private final double rampUpPos = 0.685;
 
     //---------------- Constructor ----------------
     public Ramp(HardwareMap map) {

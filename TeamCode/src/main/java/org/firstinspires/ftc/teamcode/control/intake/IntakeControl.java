@@ -21,7 +21,7 @@ public class IntakeControl implements Control {
     private enum State {
         STOPPED,
         INTAKING,
-        FULL,       // RT is held with 4 balls already in: spinner and transfer at low power
+        FULL,
         OUTTAKING,
         FIRING
     }
@@ -33,20 +33,17 @@ public class IntakeControl implements Control {
     private final Transfer transfer;
     private final Gamepad gp1;
     private final Gamepad gp2;
-    private final BooleanSupplier firing; // true while the shooter wants the balls fed to it
+    private final BooleanSupplier firing;
 
     private final double TRIGGER_THRESHOLD = 0.1;
-    // Low power that holds balls in place: the transfer uses it once a ball is waiting at the blocker,
-    // and the spinner uses it too once the robot is full
     private final double HOLD_POW = 0.3;
-    private final int MAX_BALLS = 4; // a robot may only control 4 at once
+    private final int MAX_BALLS = 4;
 
     private State state = State.STOPPED;
 
     private final EdgeDetector toggleRampRE;
 
     //---------------- Constructors ----------------
-    // firing: asked every loop. While it's true the blocker opens and everything feeds toward the flywheel
     public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2, BooleanSupplier firing){
         this.intake = intake;
         this.ramp = intake.ramp;
@@ -58,13 +55,11 @@ public class IntakeControl implements Control {
         this.toggleRampRE = new EdgeDetector(() -> ramp.toggleRamp());
     }
 
-    // Intake only, never fires (for tests without a shooter)
     public IntakeControl(Intake intake, Gamepad gp1, Gamepad gp2){
         this(intake, gp1, gp2, () -> false);
     }
 
     //---------------- Helper Methods ----------------
-    // Only tells the blocker to move when it needs to change, so the servo isn't rewritten every loop
     private void setBlockerOpen(boolean open){
         if (open == transfer.isBlockerOpen()) return;
         if (open) transfer.openBlocker();
@@ -81,24 +76,18 @@ public class IntakeControl implements Control {
         boolean out = gp1.left_trigger > TRIGGER_THRESHOLD;
 
         if (out && !in) {
-            // Outtake always works, even when full or in the middle of a shot: both motors full power backward
             state = State.OUTTAKING;
             setBlockerOpen(false);
             intake.intakeOut();
         } else if (firing.getAsBoolean()) {
-            // Dump everything into the flywheel
             state = State.FIRING;
             setBlockerOpen(true);
             intake.intakeIn();
         } else if (in && !out && spinner.getBallCount() >= MAX_BALLS) {
-            // Full: the spinner drops to the same low power as the transfer, so the balls are held in
-            // place without being pushed hard against the blocker
             state = State.FULL;
             setBlockerOpen(false);
             intake.intakeIn(HOLD_POW);
         } else if (in && !out) {
-            // Full power until the first ball reaches the last sensor (it's now waiting at the blocker),
-            // then the transfer drops so it only holds that ball in place while more come in behind it
             state = State.INTAKING;
             setBlockerOpen(false);
             spinner.setSpinnerSpinIn();

@@ -10,20 +10,17 @@ public class ShooterData {
     public final double MAX_DISTANCE = 1000; // inches
     public final double INVALID = -2;
 
-    // End rows repeat the closest measured row, so outside the measured range (12.8–87.5 in.) the
-    // tables hold that row's values instead of bending toward made-up numbers at 0 and 1000
     private final double MIN_RPM = 2070;
     private final double MAX_RPM = 2520;
     private final double MIN_ANGLE = 0.400;
     private final double MAX_ANGLE = 0.820;
-    // Same idea for the shot-time table (measured 18–80 in.)
     private final double MIN_SHOT_TIME = 0.50;
     private final double MAX_SHOT_TIME = 0.85;
 
     //---------------- Tables ----------------
     private final InterpLUT rpmLUT = new InterpLUT();
-    private final InterpLUT angleLUT = new InterpLUT(); // hood servo position, 0.39–0.82
-    private final InterpLUT shotTimeLUT = new InterpLUT(); // seconds the ball is in the air
+    private final InterpLUT angleLUT = new InterpLUT();
+    private final InterpLUT shotTimeLUT = new InterpLUT();
 
     public ShooterData() {
         addRPMData();
@@ -35,22 +32,18 @@ public class ShooterData {
     }
 
     //---------------- Data ----------------
-    // From the Shot Data Collector, 2026-11-17, distance from odometry. 12.8–48.5 in. are from
-    // shotData_20261117_185320.csv (straight back from the close Cell); 54.6–87.5 in. are from
-    // shotData_20261117_191338.csv (from the corners). The comment on each row is the robot pose it was saved at.
-    // Distances must strictly increase, and no distance can appear twice
     private void addRPMData() {
         rpmLUT.add(MIN_DISTANCE, MIN_RPM);
-        rpmLUT.add(12.8, 2070);  // (61.1, 44.2) 84.1 deg
-        rpmLUT.add(20.6, 2080);  // (60.4, 36.4) 83.2 deg
-        rpmLUT.add(28.8, 2120);  // (59.5, 28.2) 85.0 deg
-        rpmLUT.add(36.4, 2140);  // (59.0, 20.6) 85.6 deg
-        rpmLUT.add(41.1, 2190);  // (58.7, 15.9) 87.1 deg
-        rpmLUT.add(48.5, 2230);  // (56.7, 8.5) 88.0 deg
-        rpmLUT.add(54.6, 2250);  // (21.7, 17.5) 55.6 deg
-        rpmLUT.add(66.3, 2320);  // (11.3, 11.5) 61.9 deg
-        rpmLUT.add(68.3, 2370);  // (111.7, 13.5) 105.8 deg
-        rpmLUT.add(87.5, 2520);  // (131.3, 7.6) 111.5 deg
+        rpmLUT.add(12.8, 2070);
+        rpmLUT.add(20.6, 2080);
+        rpmLUT.add(28.8, 2120);
+        rpmLUT.add(36.4, 2140);
+        rpmLUT.add(41.1, 2190);
+        rpmLUT.add(48.5, 2230);
+        rpmLUT.add(54.6, 2250);
+        rpmLUT.add(66.3, 2320);
+        rpmLUT.add(68.3, 2370);
+        rpmLUT.add(87.5, 2520);
         rpmLUT.add(MAX_DISTANCE, MAX_RPM);
     }
 
@@ -69,8 +62,6 @@ public class ShooterData {
         angleLUT.add(MAX_DISTANCE, MAX_ANGLE);
     }
 
-    // Flight time: from leaving the flywheel to reaching the Cell opening. Measured 2026-11-19 from slow-motion
-    // video, shooting with these RPM/hood tables. Used to lead shots while the robot moves (TurretAim)
     private void addShotTimeData() {
         shotTimeLUT.add(MIN_DISTANCE, MIN_SHOT_TIME);
         shotTimeLUT.add(18, 0.50);
@@ -93,7 +84,6 @@ public class ShooterData {
         return angleLUT.get(distance);
     }
 
-    /** Seconds the ball is in the air at this distance, or INVALID outside the table. */
     public double getShotTimeVal(double distance) {
         if (!inRange(distance)) return INVALID;
         return shotTimeLUT.get(distance);

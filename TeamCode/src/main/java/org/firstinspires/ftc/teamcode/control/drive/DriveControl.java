@@ -25,7 +25,6 @@ public class DriveControl implements Control {
     private boolean slowMode;
     private final Rates moveRate, turnRate;
     private double forward, right, turn;
-    // Slow mode is on only while the button is held: pressing turns it on, letting go turns it off
     private final EdgeDetector slowHold = new EdgeDetector(() -> slowMode = true, () -> slowMode = false);
 
     public DriveControl(Drive drive, Gamepad gamepad, boolean ratesEnabled, boolean fieldCentric) {
@@ -33,8 +32,6 @@ public class DriveControl implements Control {
         this.gamepad = gamepad;
         this.ratesEnabled = ratesEnabled;
         this.fieldCentric = fieldCentric;
-        // Rate settings are captured when this control is created at OpMode Start.
-        // Linear mode retains the same deadzone and maximum output, without curve shaping.
         moveRate = new Rates(ratesEnabled ? moveCenterRate : maxRate, maxRate,
                 ratesEnabled ? moveExpo : 0, deadzone);
         turnRate = new Rates(ratesEnabled ? turnCenterRate : maxRate, maxRate,

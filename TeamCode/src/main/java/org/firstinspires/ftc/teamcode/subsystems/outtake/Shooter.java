@@ -20,14 +20,13 @@ public class Shooter implements Subsystem {
 
     //---------------- Software ----------------
     private final Utility util = new Utility();
-    private final double hoodStart = 0.5;
+    private final double hoodStart = 0.76;
 
     private double flywheelPow = 0.0;
     private double hoodPos = hoodStart;
     private boolean hoodChanged = false;
     private final double hoodMin = 0.39;
     private final double hoodMax = 0.82;
-    // TODO verify that increasing the position raises the hood
     public static double hoodStep = 0.02;
 
     public static double shootRPM = 2000;
@@ -36,17 +35,16 @@ public class Shooter implements Subsystem {
 
     private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
     private final double SHOOTER_GEAR_RATIO = 1.0;
+
     private PIDFController flywheelPID;
     public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.000213;
-    // Oct 25 (dev): f = 0.000213, tuned with both motors on one port. Was f = 0.00023 before
-    //OLD: p = 0.0015, i = 0.0001, d = 0.0, f = 0.0002;
-    //NEW: p = 0.0014, i = 0.00008, d = 0.0, f = 0.00023
-    //public static double integrationBounds = 250;
+    public static double integrationBounds = 200;
+    public static double posTolerance = 100;
+    private boolean useFlywheelPID = true;
+
     public static double flywheelTargetRPM = 0;
     private double currentRPM = 0;
-    //public static double posTolerance = 150;
     private double flywheelMaxPower = 1.0;
-    private boolean useFlywheelPID = true;
 
     private double flywheelOffset = 0;
     private double hoodOffset = 0;
@@ -55,10 +53,6 @@ public class Shooter implements Subsystem {
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
-        // Two flywheel motors wired to the same port (Control Hub 3), so in code they're one motor. Only one
-        // encoder can plug into the port, so RPM comes from that motor. FORWARD (the user's call, same as dev).
-        // RUN_WITHOUT_ENCODER because the PIDF below controls speed, so the hub's own velocity loop
-        // shouldn't run on top of it (dev had RUN_USING_ENCODER)
         flywheel = map.get(DcMotorEx.class, "flywheel");
         flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -66,10 +60,9 @@ public class Shooter implements Subsystem {
         hood = map.get(Servo.class, "hood");
 
         flywheelPID = new PIDFController(p, i, d, f);
-        // The live target remains configurable for the tuner, but never carries into a new OpMode.
         stop();
-        //flywheelPID.setIntegrationBounds(-integrationBounds, integrationBounds);
-        //flywheelPID.setTolerance(posTolerance);
+        flywheelPID.setIntegrationBounds(-integrationBounds, integrationBounds);
+        flywheelPID.setTolerance(posTolerance);
     }
 
     //---------------- Core Methods ----------------
@@ -110,7 +103,6 @@ public class Shooter implements Subsystem {
         setTargetRPM(isShooting() ? 0 : shootRPM);
     }
 
-    // Changes the RPM used when shooting, and applies it right away if already shooting
     public void adjustShootRPM(double delta){
         shootRPM = util.clamp(shootRPM + delta, 0, maxRPM);
         if (isShooting()) {
@@ -190,7 +182,7 @@ public class Shooter implements Subsystem {
     @Override
     public void init(){
         stop();
-        //setHoodPos(hoodStart);
+        setHoodPos(hoodStart);
     }
 
     @Override
@@ -215,11 +207,8 @@ public class Shooter implements Subsystem {
         newRPM = flywheelTargetRPM + flywheelOffset;
         if (useFlywheelPID) {
             if (newRPM <= 0) {
-                // A stopped shooter must not receive residual power from PID integral state.
                 flywheelPID.reset();
                 flywheelPow = 0;
-                // Keep reading the speed while off, so isAtRPM() can't pass on an old reading from the
-                // last time the flywheel ran
                 currentRPM = velToRPM(flywheel.getVelocity());
             } else {
                 setFlywheelRPM(newRPM);

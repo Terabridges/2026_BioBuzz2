@@ -289,7 +289,11 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 - The **Shot Data Collector** doesn't use `DriveManager`: it keeps its own `FollowerManager` (so it can set
   a start pose) and drives through `new PedroDrive(follower)` with `DriveControl(drive, gamepad1, true, false)`,
   the same pattern as `IntakeDriveHoldTest`.
-- Motor directions: left side FORWARD, right side REVERSE, brake mode.
+- Motor directions: left side FORWARD, right side REVERSE. **Float, not brake** (user, 2026-11-21): Pedro
+  `manualBrakeMode` false (TeleOp; path following is always float) and `DirectDrive` FLOAT. **The drive motors
+  have no encoders**, so both backends use `RUN_WITHOUT_ENCODER` (Pedro never sets a mode; the SDK resets
+  motors to it before each OpMode). With float, gamepad 2 Y's 0.5 s IMU hold coasts rather than stops, so
+  press it only once the robot is still.
 
 ### Pedro and localization (`pedro/`)
 

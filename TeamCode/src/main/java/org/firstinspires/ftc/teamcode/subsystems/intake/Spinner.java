@@ -14,8 +14,8 @@ public class Spinner implements Subsystem {
 
     //---------------- Hardware ----------------
     private DigitalChannel sensor1; // Entry sensor
-    private DigitalChannel sensor2; // Mid-path 1
-    private DigitalChannel sensor3; // Mid-path 2
+    private DigitalChannel sensor2;
+    private DigitalChannel sensor3;
     private DigitalChannel sensor4; // Exit/Outtake sensor
     private DcMotorEx spinner;
 
@@ -23,7 +23,6 @@ public class Spinner implements Subsystem {
     private int ballCount = 0;
     private double spinnerPow = 0.0;
 
-    // Timing & Filtering
     private final ElapsedTime sensor1Timer = new ElapsedTime();
     private final ElapsedTime sensor4Timer = new ElapsedTime();
     private final ElapsedTime sensor1HoldTimer = new ElapsedTime();
@@ -107,7 +106,6 @@ public class Spinner implements Subsystem {
             }
         }
 
-        // Evaluate the final cluster at the end of the array
         if (clusterSize > 0) {
             if (spinnerPow == 0) {
                 rawCount += clusterSize;
