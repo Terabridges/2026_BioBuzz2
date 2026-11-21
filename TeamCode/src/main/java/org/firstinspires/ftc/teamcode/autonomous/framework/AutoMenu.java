@@ -23,6 +23,7 @@ public final class AutoMenu {
     private Alliance alliance;
     private StartSide side;
     private AutoCatalog.Entry selected;
+    private boolean confirmed;
 
     public AutoMenu(List<AutoCatalog.Entry> entries) {
         if (entries.isEmpty()) throw new IllegalArgumentException("Auto menu needs at least one routine");
@@ -39,10 +40,20 @@ public final class AutoMenu {
         alliance = null;
         side = null;
         selected = entries.get(0);
+        confirmed = false;
     }
 
     public AutoCatalog.Entry selected() { return selected; }
+    public boolean isConfirmed() { return confirmed; }
     public int cursor() { return cursor; }
+
+    public String selectionLabel() {
+        String allianceLabel = level == Level.ALLIANCE ? "____" : alliance.label;
+        String sideLabel = level == Level.ROUTINE ? side.label : "____";
+        boolean routineChosen = level == Level.ROUTINE && confirmed
+                && selected.config.alliance == alliance && selected.config.startSide == side;
+        return allianceLabel + " > " + sideLabel + " > " + (routineChosen ? selected.config.name : "____");
+    }
 
     public String location() {
         if (level == Level.ALLIANCE) return "Choose alliance";
@@ -77,6 +88,7 @@ public final class AutoMenu {
             cursor = 0;
         } else {
             selected = routines().get(cursor);
+            confirmed = true;
         }
     }
 

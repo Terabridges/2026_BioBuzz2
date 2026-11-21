@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.autonomous.framework;
 
 import com.pedropathing.follower.Follower;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.firstinspires.ftc.teamcode.actions.Action;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
@@ -20,15 +22,32 @@ public final class AutoContext {
     public final Follower follower;
     public final Mode mode;
     private final Robot robot;
+    private final BooleanSupplier pathTestAdvance;
 
     public AutoContext(AutoConfig config, Follower follower, Robot robot, Mode mode) {
+        this(config, follower, robot, mode, () -> false);
+    }
+
+    public AutoContext(AutoConfig config, Follower follower, Robot robot, Mode mode,
+                       BooleanSupplier pathTestAdvance) {
         this.config = Objects.requireNonNull(config);
         this.follower = Objects.requireNonNull(follower);
         this.mode = Objects.requireNonNull(mode);
+        this.pathTestAdvance = Objects.requireNonNull(pathTestAdvance);
         if (mode == Mode.PATH_TEST && robot != null) {
             throw new IllegalArgumentException("Path testing must not initialize mechanism hardware");
         }
         this.robot = robot;
+    }
+
+    /** Current advance button state for routines that step through paths in test mode. */
+    public boolean pathTestAdvanceDown() {
+        return mode == Mode.PATH_TEST && pathTestAdvance.getAsBoolean();
+    }
+
+    /** Issue a single subsystem command in competition, skipping hardware in path tests. */
+    public void runMechanism(Consumer<Robot> command) {
+        if (mode == Mode.COMPETITION) command.accept(requireRobot());
     }
 
     /**
@@ -39,10 +58,14 @@ public final class AutoContext {
     public Action mechanismAction(Function<Robot, Action> factory) {
         Objects.requireNonNull(factory);
         if (mode == Mode.PATH_TEST) return new SkippedAction();
+        return Objects.requireNonNull(factory.apply(requireRobot()));
+    }
+
+    private Robot requireRobot() {
         if (robot == null) {
             throw new IllegalStateException("Register this routine with requiresRobot = true");
         }
-        return Objects.requireNonNull(factory.apply(robot));
+        return robot;
     }
 
     private static final class SkippedAction implements Action {

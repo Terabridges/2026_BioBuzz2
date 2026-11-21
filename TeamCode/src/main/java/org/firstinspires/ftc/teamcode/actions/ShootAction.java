@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.actions;
 
+import com.sfdev.assembly.state.StateMachine;
+import com.sfdev.assembly.state.StateMachineBuilder;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import java.util.function.BooleanSupplier;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
@@ -8,7 +10,7 @@ import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 /** Feeds a batch after spin-up and readiness. Ball count indicates feed completion, not scoring. */
 public final class ShootAction implements Action {
     private static final double EMPTY_CONFIRM_SECONDS = 0.2;
-    private enum Phase { WAITING_FOR_FEED, FEEDING, CONFIRMING_EMPTY }
+    private enum Phase { WAITING_FOR_FEED, FEEDING, CONFIRMING_EMPTY, DONE }
 
     private final Outtake outtake;
     private final Intake intake;
@@ -16,7 +18,7 @@ public final class ShootAction implements Action {
     private final double timeoutSeconds;
     private final ElapsedTime timer = new ElapsedTime();
     private final ElapsedTime emptyTimer = new ElapsedTime();
-    private Phase phase;
+    private final StateMachine machine;
     private Result result = Result.READY;
 
     public ShootAction(Outtake outtake, Intake intake, BooleanSupplier feedingAllowed, double timeoutSeconds) {
@@ -27,11 +29,26 @@ public final class ShootAction implements Action {
         this.intake = intake;
         this.feedingAllowed = feedingAllowed;
         this.timeoutSeconds = timeoutSeconds;
+        machine = new StateMachineBuilder()
+                .state(Phase.WAITING_FOR_FEED)
+                .transition(() -> outtake.isAutomaticFiring() && !hasBalls(), Phase.CONFIRMING_EMPTY,
+                        emptyTimer::reset)
+                .transition(outtake::isAutomaticFiring, Phase.FEEDING)
+                .state(Phase.FEEDING)
+                .transition(() -> !hasBalls(), Phase.CONFIRMING_EMPTY, emptyTimer::reset)
+                .state(Phase.CONFIRMING_EMPTY)
+                .transition(this::hasBalls, Phase.FEEDING)
+                .transition(() -> emptyTimer.seconds() >= EMPTY_CONFIRM_SECONDS, Phase.DONE)
+                .state(Phase.DONE)
+                .build();
     }
+
+    private boolean hasBalls() { return intake.spinner.getBallCount() > 0; }
 
     @Override public void start() {
         timer.reset();
-        phase = Phase.WAITING_FOR_FEED;
+        machine.setState(Phase.WAITING_FOR_FEED);
+        machine.start();
         result = Result.RUNNING;
     }
 
@@ -42,19 +59,10 @@ public final class ShootAction implements Action {
             return;
         }
 
-        if (outtake.isAutomaticFiring() && phase == Phase.WAITING_FOR_FEED) {
-            phase = Phase.FEEDING;
-        }
-        if (phase != Phase.WAITING_FOR_FEED) {
-            if (intake.spinner.getBallCount() > 0) {
-                phase = Phase.FEEDING;
-            } else if (phase == Phase.FEEDING) {
-                phase = Phase.CONFIRMING_EMPTY;
-                emptyTimer.reset();
-            } else if (emptyTimer.seconds() >= EMPTY_CONFIRM_SECONDS) {
-                finish(Result.SUCCEEDED);
-                return;
-            }
+        machine.update();
+        if (machine.getState() == Phase.DONE) {
+            finish(Result.SUCCEEDED);
+            return;
         }
 
         // Outtake owns the readiness checks and retains the feed latch across normal RPM dips.
@@ -69,6 +77,7 @@ public final class ShootAction implements Action {
     }
 
     private void finish(Result outcome) {
+        machine.stop();
         result = outcome;
         outtake.stopFiring();
         intake.stopFeed();

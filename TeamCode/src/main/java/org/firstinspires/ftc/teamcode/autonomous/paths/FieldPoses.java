@@ -12,11 +12,13 @@ import org.firstinspires.ftc.teamcode.config.RobotGeometry;
  */
 public final class FieldPoses {
     public static final Pose RED_AUDIENCE_START = new Pose(
-            24.0 + RobotGeometry.robotHalfWidth, RobotGeometry.robotHalfLength, Math.toRadians(270));
+            24.0 + RobotGeometry.robotHalfWidth,
+            RobotGeometry.robotHalfLength + RobotGeometry.wall, Math.toRadians(270));
 
     public static final Pose RED_REAR_START = new Pose(
             FieldLandmarks.FIELD_CENTER_INCHES - RobotGeometry.robotHalfWidth,
-            FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength, Math.toRadians(90));
+            FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength + RobotGeometry.wall,
+            Math.toRadians(90));
 
     // Switching alliances also switches which end of the field the pose is on.
     public static final Pose BLUE_AUDIENCE_START = rotateForOppositeAlliance(RED_REAR_START);
@@ -25,7 +27,7 @@ public final class FieldPoses {
     /**
      * Robot-center pose with the back against the audience wall and the left side
      * against the left wall, facing away from the audience (+Y).
-     * Shared starting placement for autonomous and independently started TeleOp.
+     * Reference corner placement for diagnostics and pose resets.
      */
     public static final Pose AUDIENCE_LEFT_CORNER_START = new Pose(
             RobotGeometry.robotHalfWidth, RobotGeometry.robotHalfLength, Math.toRadians(90));
@@ -53,20 +55,27 @@ public final class FieldPoses {
         return new Pose(x, y, Math.toRadians(far ? -90 : 90));
     }
 
-    //---------------- Path Poses ------------------------
-    private final PoseFactory poseFactory = PoseFactory.degrees();
-    public final Pose start = poseFactory.of(31, 7.25, -90);
-    public final Pose startToGarden = poseFactory.of(8.5, 8.5, 270);
-    public final Pose startToGardenControl1 = poseFactory.of(19.5, 21.0007, 0);
-    public final Pose gardenToApproachRearHive = poseFactory.of(43, 111.5, -159.3045);
-    public final Pose gardenToApproachRearHiveControl1 = poseFactory.of(8.5, 24.5, 0);
-    public final Pose gardenToApproachRearHiveControl2 = poseFactory.of(40.25, 56.5, 0);
-    public final Pose gardenToApproachRearHiveControl3 = poseFactory.of(20.5, 103, 0);
-    public final Pose approachRearHiveToScoreRearHiveAndApproachRearFlowerStart = poseFactory.of(43, 111.5, 90);
-    public final Pose approachRearHiveToScoreRearHiveAndApproachRearFlower = poseFactory.of(48, 118, 90);
-    public final Pose approachRearFlowerToIntakeRearFlowerStart = poseFactory.of(48, 118, 90);
-    public final Pose approachRearFlowerToIntakeRearFlower = poseFactory.of(48, 132, 90);
-    public final Pose rearFlowerToPark = poseFactory.of(16, 114.5, 90);
+    /** Red Audience Two Tip waypoints and curve control points. */
+    public static final class TwoTip {
+        private static final PoseFactory DEGREES = PoseFactory.degrees();
+        private static final Pose REAR_FLOWER_ANCHOR = FieldLandmarks.FLOWER_REAR_LEFT_WALL_ANCHOR;
+
+        public static final Pose GARDEN = DEGREES.of(8.5, 8.5, 270);
+        public static final Pose GARDEN_CONTROL = DEGREES.of(19.5, 21.0007, 0);
+        public static final Pose CROSS_FIELD_CONTROL_1 = DEGREES.of(8.5, 24.5, 0);
+        public static final Pose CROSS_FIELD_CONTROL_2 = DEGREES.of(40.25, 56.5, 0);
+        public static final Pose CROSS_FIELD_CONTROL_3 = DEGREES.of(20.5, 103, 0);
+
+        // Distances from the rear wall to the robot center along the Flower centerline.
+        public static final Pose REAR_FLOWER_LINEUP = DEGREES.of(
+                REAR_FLOWER_ANCHOR.x(), REAR_FLOWER_ANCHOR.y() - 25.0, -159.3045);
+        public static final Pose REAR_FLOWER_FACING_WALL = REAR_FLOWER_LINEUP.withHeading(Math.PI / 2);
+        public static final Pose REAR_FLOWER_INTAKE = DEGREES.of(
+                REAR_FLOWER_ANCHOR.x(), REAR_FLOWER_ANCHOR.y() - 16.125, 90);
+        public static final Pose PARK = DEGREES.of(16, 114.5, 90);
+
+        private TwoTip() {}
+    }
 
     private FieldPoses() {}
 }

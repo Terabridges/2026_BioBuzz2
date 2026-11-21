@@ -8,8 +8,7 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
 import java.util.List;
 
 /**
- * Shared nested menu for Auto Select and Auto Path Test. Choices come from AutoCatalog;
- * both menus construct the same routines, with the execution mode supplied in AutoContext.
+ * Shared nested menu for Auto Select and Auto Path Test. Both use AutoCatalog entries.
  * Selection changes only during init_loop and is frozen when Start is pressed.
  * Keep menu behavior here; route execution belongs in the selected routine.
  */
@@ -59,10 +58,13 @@ public abstract class SelectableAutoOpMode extends BaseAutoOpMode {
         for (int i = 0; i < options.size(); i++) {
             telemetry.addLine((i == menu.cursor() ? "> " : "  ") + options.get(i));
         }
+        telemetry.addData("SELECTED AUTO", menu.selectionLabel());
+        if (menu.isConfirmed()) {
+            telemetry.addData("READY - Start runs", menu.selected().config.selectionLabel());
+        }
         telemetry.addLine("D-pad up/down: browse | A: enter/confirm | B: back");
-        telemetry.addLine("Start runs the confirmed Auto shown above, not the highlighted folder.");
         if (executionMode() == AutoContext.Mode.PATH_TEST) {
-            telemetry.addLine("Paths run normally; mechanism actions are skipped.");
+            telemetry.addLine("Path tests skip mechanisms.");
         }
     }
 }

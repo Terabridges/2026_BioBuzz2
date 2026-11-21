@@ -24,6 +24,7 @@ public final class AutoPreloadTest extends BaseAutoOpMode {
     }
 
     @Override protected void addSelectionTelemetry() {
+        super.addSelectionTelemetry();
         telemetry.addLine("Place the robot in the audience-left corner, facing away from the audience.");
         telemetry.addLine("Load a preload and use the red close Cell. This test shoots from a stop.");
     }

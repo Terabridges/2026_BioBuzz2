@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.routines.DoNothingRoutine;
+import org.firstinspires.ftc.teamcode.autonomous.routines.TwoTipRoutine;
 
 /**
  * Register each strategy once; Auto Select and Auto Path Test use this same list.
@@ -15,7 +16,6 @@ import org.firstinspires.ftc.teamcode.autonomous.routines.DoNothingRoutine;
  * An entry pairs its configuration with a factory that creates a fresh routine.
  * Set requiresRobot to true when the routine uses mechanism actions.
  * The competition menu initializes Robot if any entry needs it; path-test mode never does.
- * Only Do Nothing is registered for each alliance/side until real routes are implemented.
  */
 public final class AutoCatalog {
     public static final class Entry {
@@ -38,6 +38,8 @@ public final class AutoCatalog {
             doNothing(Alliance.BLUE, StartSide.AUDIENCE, FieldPoses.BLUE_AUDIENCE_START),
             doNothing(Alliance.BLUE, StartSide.REAR, FieldPoses.BLUE_REAR_START),
             doNothing(Alliance.RED, StartSide.AUDIENCE, FieldPoses.RED_AUDIENCE_START),
+            new Entry(new AutoConfig("Two Tip", Alliance.RED, StartSide.AUDIENCE,
+                    FieldPoses.RED_AUDIENCE_START), true, TwoTipRoutine::new),
             doNothing(Alliance.RED, StartSide.REAR, FieldPoses.RED_REAR_START)
     ));
 

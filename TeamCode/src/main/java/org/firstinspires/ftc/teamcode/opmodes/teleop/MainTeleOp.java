@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
+import org.firstinspires.ftc.teamcode.config.RobotGeometry;
 import org.firstinspires.ftc.teamcode.control.Control;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
 import org.firstinspires.ftc.teamcode.subsystems.drive.DriveManager;
@@ -45,11 +46,9 @@ public class MainTeleOp extends OpMode {
     private static final boolean START_FIELD_CENTRIC = false;
 
     //---------------- Tunable (Panels) ----------------
-    // Start pose when autonomous didn't run first, same as Test Shot: robot in the audience-left corner
-    // (the field's 0, 0 corner), back against the audience wall, left side against the left wall, facing
-    // away from the audience. The pose is the robot's center: half its width in x, half its length in y
-    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();   // 7.58 in.
-    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
+    // Fresh follower starts in the audience-left corner with the wall offset on both axes.
+    public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x() + RobotGeometry.wall;
+    public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y() + RobotGeometry.wall;
     public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
 
 

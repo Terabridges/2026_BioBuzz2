@@ -43,9 +43,10 @@ public class FieldPosesTest {
     }
 
     @Test public void autonomousStartsMatchTheSelectedEndOfTheField() {
-        assertPose(FieldPoses.RED_AUDIENCE_START, 24 + HALF_W, HALF_L, 270);
-        assertPose(FieldPoses.RED_REAR_START, 72 - HALF_W, 144 - HALF_L, 90);
-        assertPose(FieldPoses.BLUE_AUDIENCE_START, 72 + HALF_W, HALF_L, 270);
-        assertPose(FieldPoses.BLUE_REAR_START, 120 - HALF_W, 144 - HALF_L, 90);
+        double wall = 1.0;
+        assertPose(FieldPoses.RED_AUDIENCE_START, 24 + HALF_W, HALF_L + wall, 270);
+        assertPose(FieldPoses.RED_REAR_START, 72 - HALF_W, 144 - HALF_L + wall, 90);
+        assertPose(FieldPoses.BLUE_AUDIENCE_START, 72 + HALF_W, HALF_L - wall, 270);
+        assertPose(FieldPoses.BLUE_REAR_START, 120 - HALF_W, 144 - HALF_L - wall, 90);
     }
 }
