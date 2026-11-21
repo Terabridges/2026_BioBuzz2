@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.subsystems.drive;
 
 import com.pedropathing.follower.Follower;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
@@ -15,6 +16,7 @@ public final class DriveManager {
     private DirectDrive direct;
     private FollowerManager manager;
     private Drive drive;
+    private GoBildaPinpointDriver pinpoint;
 
     public DriveManager(Backend backend) {
         this.backend = backend;
@@ -41,6 +43,8 @@ public final class DriveManager {
                 direct = new DirectDrive(map);
                 drive = direct;
             }
+            // The same device both backends read (hardwareMap hands back the same object)
+            pinpoint = map.get(GoBildaPinpointDriver.class, "pinpoint");
         } catch (RuntimeException failure) {
             stop();
             throw failure;
@@ -86,6 +90,16 @@ public final class DriveManager {
         if (!started || stopped) throw new IllegalStateException("Drive is not active");
         if (manager == null) throw new IllegalStateException("Only the PEDRO backend has a follower");
         return manager.follower();
+    }
+
+    /**
+     * Recalibrates the Pinpoint's gyro, like its button but without zeroing the pose. The robot MUST sit still
+     * for about 0.25 s while it samples the new zero. This stops future drift; it doesn't undo heading error
+     * that has already built up (a pose reset does that).
+     */
+    public void recalibrateImu() {
+        if (!started || stopped) throw new IllegalStateException("Drive is not active");
+        pinpoint.recalibrateIMU();
     }
 
     /** True when the pose came from autonomous, so it shouldn't be overwritten with a start pose. */

@@ -152,7 +152,8 @@ public class OuttakeControl implements Control {
         manualHeld = true;
     }
 
-    private void clearOffsets() {
+    /** Gamepad 2 B, and MainTeleOp's corner pose resets. */
+    public void clearOffsets() {
         rpmOffset = 0;
         hoodOffset = 0;
         turretOffsetDeg = 0;

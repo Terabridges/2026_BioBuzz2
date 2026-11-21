@@ -32,7 +32,8 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  *   D-pad down  switch target Cell (close / far)     OuttakeControl
  * Gamepad 2
  *   Start     switch alliance (red / blue), in INIT or during the match   here
- *   X / A     reset the pose: close / far corner     here
+ *   X / A     reset the pose: close / far corner, and clear the shot offsets   here
+ *   Y         recalibrate the Pinpoint gyro (drive held still 0.5 s)          here
  *   D-pad, bumpers, B    shot offsets                OuttakeControl
  * </pre>
  */
@@ -51,6 +52,9 @@ public class MainTeleOp extends OpMode {
     public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x();   // 7.58 in.
     public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y();   // 8.19 in.
     public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
+    // How long gamepad 2 Y holds the drive still while the Pinpoint recalibrates its gyro. goBILDA says
+    // it takes about 0.25 s; Pedro waits 0.5 s after its own calibration at INIT
+    public static double imuCalibrateSec = 0.5;
 
 
     private Robot robot;
@@ -73,6 +77,10 @@ public class MainTeleOp extends OpMode {
     // The alliance is the one the turret aims for
     private final EdgeDetector resetClose = new EdgeDetector(() -> resetToCorner(false));
     private final EdgeDetector resetFar = new EdgeDetector(() -> resetToCorner(true));
+    // Gamepad 2 Y recalibrates the Pinpoint's gyro to slow heading drift. It doesn't move the pose, so press
+    // it together with X or A in the corner to fix both, or skip it when there's no time to sit still
+    private final EdgeDetector recalibrateImu = new EdgeDetector(this::recalibrateImu);
+    private long imuCalibratingUntil;
 
     @Override public void init() {
         drive = new DriveManager(DRIVE_BACKEND);
@@ -123,7 +131,10 @@ public class MainTeleOp extends OpMode {
         switchAlliance.update(gamepad2.start);
         resetClose.update(gamepad2.x);
         resetFar.update(gamepad2.a);
-        driveControl.update();
+        recalibrateImu.update(gamepad2.y);
+        // The gyro samples its new zero while the robot is still, so the sticks are ignored until it's done
+        if (isCalibratingImu(now)) drive.drive().robotCentric(0, 0, 0);
+        else driveControl.update();
         drive.update();
         for (Control control : mechanismControls) control.update();
         robot.update();
@@ -131,6 +142,7 @@ public class MainTeleOp extends OpMode {
         if (now - lastTelemetry >= 200_000_000L) {
             Pose pose = drive.follower().pose();
             joinedTelemetry.addData("Alliance", alliance);
+            if (isCalibratingImu(now)) joinedTelemetry.addLine("CALIBRATING IMU: hold still");
             joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg",
                     pose.x(), pose.y(), Math.toDegrees(pose.heading()));
             addVelocityTelemetry(pose);
@@ -173,8 +185,19 @@ public class MainTeleOp extends OpMode {
         outtakeControl.setAlliance(alliance);
     }
 
+    // A corner reset is a fresh start for aiming, so the gamepad 2 shot offsets go back to zero too
     private void resetToCorner(boolean far) {
         drive.follower().setPose(FieldPoses.allianceCorner(alliance, far));
+        outtakeControl.clearOffsets();
+    }
+
+    private void recalibrateImu() {
+        drive.recalibrateImu();
+        imuCalibratingUntil = System.nanoTime() + (long) (imuCalibrateSec * 1e9);
+    }
+
+    private boolean isCalibratingImu(long now) {
+        return now - imuCalibratingUntil < 0;
     }
 
     private void setPose(double x, double y, double headingDeg) {

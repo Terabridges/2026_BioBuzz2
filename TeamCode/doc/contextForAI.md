@@ -548,8 +548,9 @@ code, and ask before assigning the empty buttons.
 | Input | Action | Class |
 | --- | --- | --- |
 | Start | Switch alliance red ↔ blue, in INIT or during the match | `MainTeleOp` |
-| X | Reset the pose: **close corner** (alliance side wall, back to the audience wall, facing +y, 90°) | `MainTeleOp` |
-| A | Reset the pose: **far corner** (alliance side wall, back to the rear wall, facing −y, −90°) | `MainTeleOp` |
+| X | Reset the pose: **close corner** (alliance side wall, back to the audience wall, facing +y, 90°), and clear the shot offsets | `MainTeleOp` |
+| A | Reset the pose: **far corner** (alliance side wall, back to the rear wall, facing −y, −90°), and clear the shot offsets | `MainTeleOp` |
+| Y | Recalibrate the Pinpoint gyro (`DriveManager.recalibrateImu()` → `recalibrateIMU()`); drive held at zero for `imuCalibrateSec` 0.5 s | `MainTeleOp` |
 | D-pad up / down | Hood offset + / - 0.01 | `OuttakeControl` |
 | D-pad left / right | Turret offset + / - 1° (left = counterclockwise) | `OuttakeControl` |
 | RB / LB | RPM offset + / - 25 | `OuttakeControl` |
@@ -564,6 +565,13 @@ no-auto start pose is still the red (audience-left) corner whatever the alliance
 **Reset corners (user, 2026-11-21)** come from `FieldPoses.allianceCorner(alliance, far)`, robot center from
 `RobotGeometry`: red = left wall x 7.58, blue = right wall x 136.42; close y 8.19, far y 135.81. Red close is
 `AUDIENCE_LEFT_CORNER_START`. Pedro stores −90° as 270°.
+
+**Gyro recalibrate (user, 2026-11-21):** gamepad 2 Y calls the Pinpoint's `recalibrateIMU()` (new gyro zero,
+~0.25 s, robot must be still; keeps x, y and heading). It slows future drift but doesn't fix heading error
+already built up, so in the corner press it **with X or A**; when there's no time to sit still, press X/A alone.
+The physical Pinpoint button is `resetPosAndIMU()` (also zeroes the pose). Pedro's `PinpointLocalizer` already
+runs `recalibrateIMU()` + a 500 ms sleep when it's built (default `ResetMode.RECALIBRATE_IMU`). X and A also
+call `OuttakeControl.clearOffsets()` (same as B).
 
 ### How shooting works (`OuttakeControl`, `@Configurable`)
 
