@@ -1,7 +1,7 @@
 # BIOBUZZ field landmarks
 
-`autonomous/paths/FieldPoses.java` stores nominal field references for building paths.
-It does not define autonomous routes or measured robot starting poses.
+`autonomous/paths/FieldLandmarks.java` stores the nominal field references below.
+`FieldPoses.java` in the same package holds shared robot starting poses and waypoints.
 
 ## Coordinates
 
@@ -80,9 +80,6 @@ height = 59.5. The other raised targets follow the structure's symmetry about
 the centered frame. These are calculated nominal targets, not published Pedro
 coordinates or calibrated shot solutions. Each HIVE has only one raised CELL
 at a time; choose the active end before aiming.
-
-`TEST_START` remains a local test origin used by Do Nothing. Replace it with a
-measured robot-center start when registering an actual route in `AutoCatalog`.
 
 ## Official sources
 

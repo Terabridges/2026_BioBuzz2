@@ -3,12 +3,13 @@
  *
  * Classes in framework provide the common autonomous infrastructure.
  * AutoCatalog lists the strategies available in both Driver Station menus.
- * AutoMenu groups choices by alliance, Garden/Loading side, and routine.
+ * AutoMenu groups choices by alliance, audience/rear side, and routine.
  * AutoConfig holds those selected settings and starting pose; AutoContext supplies
  * the follower and mechanism-action factory for the active run.
  *
- * FieldPoses defines locations. Classes in paths connect those locations with
- * Pedro paths. Classes in routines decide when to drive, collect, score, and finish.
+ * FieldLandmarks defines field references and FieldPoses defines robot placements.
+ * Path classes connect robot poses. Classes in routines decide when to drive,
+ * collect, score, and finish.
  * Each routine owns its sequence or state machine; reusable mechanism behaviors
  * belong in actions, and hardware/control loops belong in subsystems.
  *

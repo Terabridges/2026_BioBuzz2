@@ -8,7 +8,7 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.config.RobotGeometry;
 import org.junit.Test;
 
-/** The TeleOp reset corners: alliance side wall, back against the audience (close) or rear (far) wall. */
+/** Shared starting poses and the field transform used to switch alliances. */
 public class FieldPosesTest {
     private static final double HALF_W = RobotGeometry.robotHalfWidth;   // 7.58 in.
     private static final double HALF_L = RobotGeometry.robotHalfLength;  // 8.19 in.
@@ -33,5 +33,19 @@ public class FieldPosesTest {
     @Test public void blueCornersAreOnTheRightWall() {
         assertPose(FieldPoses.allianceCorner(Alliance.BLUE, false), 144 - HALF_W, HALF_L, 90);
         assertPose(FieldPoses.allianceCorner(Alliance.BLUE, true), 144 - HALF_W, 144 - HALF_L, -90);
+    }
+
+    @Test public void oppositeAllianceRotatesPositionAndHeadingAboutFieldCenter() {
+        Pose redPose = new Pose(30, 40, Math.toRadians(35));
+        Pose bluePose = FieldPoses.rotateForOppositeAlliance(redPose);
+        assertPose(bluePose, 114, 104, 215);
+        assertPose(FieldPoses.rotateForOppositeAlliance(bluePose), 30, 40, 35);
+    }
+
+    @Test public void autonomousStartsMatchTheSelectedEndOfTheField() {
+        assertPose(FieldPoses.RED_AUDIENCE_START, 24 + HALF_W, HALF_L, 270);
+        assertPose(FieldPoses.RED_REAR_START, 72 - HALF_W, 144 - HALF_L, 90);
+        assertPose(FieldPoses.BLUE_AUDIENCE_START, 72 + HALF_W, HALF_L, 270);
+        assertPose(FieldPoses.BLUE_REAR_START, 120 - HALF_W, 144 - HALF_L, 90);
     }
 }

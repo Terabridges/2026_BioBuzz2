@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 @Autonomous(name = "Auto Preload Test", group = "Tests")
 public final class AutoPreloadTest extends BaseAutoOpMode {
     private static final AutoConfig CONFIG = new AutoConfig("Stationary preload", Alliance.RED,
-            StartSide.GARDEN, FieldPoses.AUDIENCE_LEFT_CORNER_START, false);
+            StartSide.AUDIENCE, FieldPoses.AUDIENCE_LEFT_CORNER_START, false);
 
     @Override protected AutoConfig selectedConfig() { return CONFIG; }
 
