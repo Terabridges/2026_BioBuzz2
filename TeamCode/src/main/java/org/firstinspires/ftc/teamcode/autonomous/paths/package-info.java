@@ -2,7 +2,7 @@
  * Locations and Pedro path geometry, with no OpMode registration.
  * FieldLandmarks stores the field dimensions and reference points.
  * FieldPoses stores robot starting poses and waypoints.
- * AutoPaths provides a starting point for building Pedro paths between robot poses.
+ * Define named routes in AutoPaths using Pedro's Paths API.
  *
  * Group related paths in one class, not one class per individual path. For example,
  * a future PreloadPaths class could hold startToScore and scoreToPark. Shared paths
