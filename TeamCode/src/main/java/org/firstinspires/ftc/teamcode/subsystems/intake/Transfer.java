@@ -22,10 +22,10 @@ public class Transfer implements Subsystem {
     private double blockerPos = 0.0;
     private boolean blockerChanged = false;
 
-    private final double blockerMin = 0.52;
-    private final double blockerMax = 0.66;
-    private final double blockerClosedPos = 0.52;
-    private final double blockerOpenPos = 0.62;
+    private final double blockerMin = 0.5;
+    private final double blockerMax = 0.65;
+    private final double blockerClosedPos = 0.505;
+    private final double blockerOpenPos = 0.63;
     private boolean blockerOpen = false;
 
     private final double transferDefaultPow = 1.0;

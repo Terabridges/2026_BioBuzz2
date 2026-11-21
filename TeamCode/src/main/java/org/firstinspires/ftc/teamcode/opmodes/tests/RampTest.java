@@ -17,9 +17,9 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  *
  * Sets up the servos the same way Ramp does (left reversed, right = left + rightOffset), but writes them
  * directly instead of going through Ramp, so positions outside Ramp's clamp can be tried. Ramp clamps the
- * left servo to 0.475 to 0.676 (0.7 minus the 0.024 offset); telemetry warns when a position is outside
- * that. Copy the final values into Ramp (rampUpPos / rampDownPos / rightRampOffset) and widen the clamp if
- * needed.
+ * left servo to 0.475 to 0.7 (the right follows at left + offset); telemetry warns when a position is
+ * outside that. Copy the final values into Ramp (rampUpPos / rampDownPos / rightRampOffset) and widen the
+ * clamp if needed.
  *
  * Nothing moves during Init. At Start the ramp goes up, the same as Ramp.init().
  */
@@ -28,7 +28,7 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 public class RampTest extends OpMode {
 
     //---------------- Tunable (Panels) ----------------
-    public static double upPos = 0.685;       // Ramp.rampUpPos
+    public static double upPos = 0.695;       // Ramp.rampUpPos
     public static double downPos = 0.475;     // Ramp.rampDownPos
     public static double rightOffset = 0.024; // Ramp.rightRampOffset (right = left + offset)
 
@@ -100,12 +100,10 @@ public class RampTest extends OpMode {
         return Math.max(0.0, Math.min(1.0, pos));
     }
 
-    // Matches Ramp.setRamp(): with a positive offset the left servo's max is lowered so the right stays in range
+    // Matches Ramp.setRamp(), which clamps the left servo's position
     private static String clampWarning(double pos) {
-        double min = rightOffset < 0 ? RAMP_MIN - rightOffset : RAMP_MIN;
-        double max = rightOffset < 0 ? RAMP_MAX : RAMP_MAX - rightOffset;
-        if (pos < min || pos > max) {
-            return String.format("  (outside Ramp clamp %.3f-%.3f)", min, max);
+        if (pos < RAMP_MIN || pos > RAMP_MAX) {
+            return String.format("  (outside Ramp clamp %.3f-%.3f)", RAMP_MIN, RAMP_MAX);
         }
         return "";
     }

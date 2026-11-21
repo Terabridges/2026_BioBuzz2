@@ -16,7 +16,7 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  * editing one moves the servo right away if the blocker is in that state, so a position can be tuned live.
  *
  * Writes the servo directly instead of going through Transfer, so positions outside Transfer's clamp
- * (0.52 to 0.66) can be tried. Telemetry warns when a position is outside that clamp: copy the final
+ * (0.5 to 0.65) can be tried. Telemetry warns when a position is outside that clamp: copy the final
  * positions into Transfer (blockerClosedPos / blockerOpenPos) and widen the clamp if needed.
  *
  * Nothing moves during Init. At Start the blocker goes to the blocking position.
@@ -26,13 +26,13 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 public class BlockerTest extends OpMode {
 
     //---------------- Tunable (Panels) ----------------
-    public static double blockingPos = 0.52;  // Transfer.blockerClosedPos
-    public static double openPos = 0.62;      // Transfer.blockerOpenPos
+    public static double blockingPos = 0.505; // Transfer.blockerClosedPos
+    public static double openPos = 0.63;      // Transfer.blockerOpenPos
 
     //---------------- Constants ----------------
     // Transfer's clamp, only used for the warning
-    private static final double TRANSFER_MIN = 0.52;
-    private static final double TRANSFER_MAX = 0.66;
+    private static final double TRANSFER_MIN = 0.5;
+    private static final double TRANSFER_MAX = 0.65;
 
     //---------------- Hardware ----------------
     private Servo blocker;
@@ -89,7 +89,7 @@ public class BlockerTest extends OpMode {
 
     private static String clampWarning(double pos) {
         if (pos < TRANSFER_MIN || pos > TRANSFER_MAX) {
-            return String.format("  (outside Transfer clamp %.2f-%.2f)", TRANSFER_MIN, TRANSFER_MAX);
+            return String.format("  (outside Transfer clamp %.3f-%.3f)", TRANSFER_MIN, TRANSFER_MAX);
         }
         return "";
     }

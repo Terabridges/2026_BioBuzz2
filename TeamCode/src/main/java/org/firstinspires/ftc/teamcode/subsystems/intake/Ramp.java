@@ -16,7 +16,6 @@ public class Ramp implements Subsystem {
     //---------------- Software ----------------
     private final double rightRampOffset = 0.024;
     private final double rampStart = 0.5;
-    private boolean negativeOffset;
     private double rampPos = rampStart;
 
     private boolean rampChanged = false;
@@ -25,7 +24,7 @@ public class Ramp implements Subsystem {
     private final double rampMinPos = 0.475;
     private final double rampMaxPos = 0.7;
     private final double rampDownPos = 0.475;
-    private final double rampUpPos = 0.685;
+    private final double rampUpPos = 0.695;
 
     //---------------- Constructor ----------------
     public Ramp(HardwareMap map) {
@@ -33,13 +32,13 @@ public class Ramp implements Subsystem {
         rampRight = map.get(Servo.class, "ramp_right");
         rampLeft.setDirection(Servo.Direction.REVERSE);
         util = new Utility();
-
-        negativeOffset = rightRampOffset < 0;
     }
 
     //---------------- Core Methods ----------------
+    // The min/max limit the left servo's position (the one the code asks for, measured with Ramp Test). The right
+    // servo follows at left + rightRampOffset, so it can go up to rampMaxPos + rightRampOffset
     public void setRamp(double pos){
-        pos = util.clamp(pos, (negativeOffset ? rampMinPos-rightRampOffset : rampMinPos), (negativeOffset ? rampMaxPos : rampMaxPos-rightRampOffset));
+        pos = util.clamp(pos, rampMinPos, rampMaxPos);
         rampLeft.setPosition(pos);
         rampRight.setPosition(pos+rightRampOffset);
     }

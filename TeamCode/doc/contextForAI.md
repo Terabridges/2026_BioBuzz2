@@ -321,10 +321,10 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 
 - **Spinner** (`spinner` motor, REVERSE, no encoder, brake): the intake roller. In = +0.98 and out = -0.98.
   It can also be set to a variable power.
-- **Ramp** (two servos, left reversed, right = left + 0.024): down 0.475 and up 0.685, clamped to 0.475–0.7 (the left is really capped at 0.676 so the right stays under 0.7, so up 0.685 is clamped to 0.676).
+- **Ramp** (two servos, left reversed, right = left + 0.024): down 0.475 and up 0.695 (user, 2026-11-21, from Ramp Test). The 0.475–0.7 clamp is on the left servo's position; the right follows at left + 0.024, so it reaches 0.719 at up. (Before 2026-11-21 the clamp lowered the left's max to 0.676 to keep the right under 0.7, so up never got past 0.676.)
   `init()` puts it **up**. A toggles it.
 - **Transfer** (`transfer` motor, forward, no encoder, float; default power 1.0) moves Pollen to the
-  shooter. **Blocker** servo: closed 0.52 and open 0.62 (clamped 0.52–0.66). `init()` closes it.
+  shooter. **Blocker** servo: closed 0.505 and open 0.63 (clamped 0.5–0.65; user, 2026-11-21, from Blocker Test). `init()` closes it.
   The blocker holds Pollen back from the flywheel.
 - `Intake.intakeIn(pow)` / `intakeOut(pow)` run the spinner and transfer together.
 - **Beam sensors and ball count** (`Spinner.java` and `utility/intakeUtility/RealTimeBallFilter.java` copied
@@ -641,8 +641,8 @@ call `OuttakeControl.clearOffsets()` (same as B).
 | Shot Data Collector | Fill `ShooterData`: tune RPM/hood per distance, fire single shots, save rows (telemetry paste lines + `/sdcard/FIRST/shotData/shotData_<time>.csv`) |
 | Test Shot | Test `ShooterData`: same as the Shot Data Collector (drive, alliance on B, turret toggle on X, RB fires one ball when READY), but RPM and hood come from the tables for the current distance every loop, and nothing is saved. RT intaking runs the transfer at `loadTransferPower` 0.45, the same as the collector. Hood is only rewritten when the table value moves more than 0.002. Out-of-range distance (INVALID) holds the flywheel off |
 | Intake Sensor Test | Debug the beam sensors and ball count. Per sensor: raw `getState()`, what `Spinner` calls it (BLOCKED/clear), how many times the raw value changed, and the port (`getConnectionInfo()`). Also the raw per-loop count (a copy of `updateBallCount()`'s rules, since Spinner keeps it private), Spinner's filtered count, the same filter run on the copy (should agree), `isFull()`, and the spinner state and which count rule applies. RT/LT run spinner + transfer in/out with power from the trigger, A resets the change counters. Blocker closed, flywheel off. Sensor lines also show during Init |
-| Blocker Test | Find the blocker positions. Gamepad 1 A toggles blocking / open. `blockingPos` (0.52) and `openPos` (0.62) are Panels values and move the servo live. Writes the `blocker` servo directly (not through `Transfer`), clamped only to 0–1, and warns when a value is outside Transfer's 0.52–0.66 clamp. Nothing moves at Init; Start goes to blocking. Copy final values into `Transfer` |
-| Ramp Test | Find the ramp positions. Gamepad 1 A toggles up / down. `upPos` (0.685), `downPos` (0.475), and `rightOffset` (0.024) are Panels values and move the servos live. Sets up `ramp_left` (reversed) and `ramp_right` (= left + offset) like `Ramp` but writes them directly, clamped only to 0–1, and warns when a position is outside Ramp's clamp. Nothing moves at Init; Start goes up. Copy final values into `Ramp` |
+| Blocker Test | Find the blocker positions. Gamepad 1 A toggles blocking / open. `blockingPos` (0.505) and `openPos` (0.63) are Panels values and move the servo live. Writes the `blocker` servo directly (not through `Transfer`), clamped only to 0–1, and warns when a value is outside Transfer's 0.5–0.65 clamp. Nothing moves at Init; Start goes to blocking. Copy final values into `Transfer` |
+| Ramp Test | Find the ramp positions. Gamepad 1 A toggles up / down. `upPos` (0.695), `downPos` (0.475), and `rightOffset` (0.024) are Panels values and move the servos live. Sets up `ramp_left` (reversed) and `ramp_right` (= left + offset) like `Ramp` but writes them directly, clamped only to 0–1, and warns when a position is outside Ramp's clamp. Nothing moves at Init; Start goes up. Copy final values into `Ramp` |
 | MainTestTeleOp | Near-empty scratch TeleOp |
 | IntakeDriveHoldTest | Intake with drive-or-hold (was `IntakePlusPredictiveTrackingTeleop`) |
 | Drive Comparison Test | Compare DIRECT and PEDRO drive, toggle rates |
