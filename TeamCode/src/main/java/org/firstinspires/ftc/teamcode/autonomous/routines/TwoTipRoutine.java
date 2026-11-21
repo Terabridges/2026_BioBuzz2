@@ -47,6 +47,7 @@ public final class TwoTipRoutine implements AutoRoutine {
     private final AutoContext context;
     private final boolean pathTest;
     private final StallProtectedPathAction flowerApproach;
+    private final StallProtectedPathAction gardenApproach;
     private final Action shoot;
     private final Action flowerCollect;
     private final Action gardenCollect;
@@ -64,11 +65,12 @@ public final class TwoTipRoutine implements AutoRoutine {
         pathTest = context.mode == AutoContext.Mode.PATH_TEST;
         TwoTipPaths paths = new TwoTipPaths(context.config.startPose);
         flowerApproach = new StallProtectedPathAction(context.follower, paths.rearFlowerApproach);
+        gardenApproach = new StallProtectedPathAction(context.follower, paths.startToGarden);
         shoot = context.mechanismAction(robot -> new ShootAction(robot.outtake, robot.intake, () -> true, 5.0));
         flowerCollect = context.mechanismAction(robot ->
-                new CollectAction(robot.intake, 4, FLOWER_WAIT_SECONDS + FLOWER_SHIMMY_SECONDS));
+                new CollectAction(robot.intake, 4, FLOWER_WAIT_SECONDS + FLOWER_SHIMMY_SECONDS, 0.15));
         gardenCollect = context.mechanismAction(robot ->
-                new CollectAction(robot.intake, 4, GARDEN_WAIT_SECONDS + GARDEN_SHIMMY_SECONDS));
+                new CollectAction(robot.intake, 4, GARDEN_WAIT_SECONDS + GARDEN_SHIMMY_SECONDS, 0.15));
         machine = buildMachine(paths);
     }
 
@@ -81,12 +83,18 @@ public final class TwoTipRoutine implements AutoRoutine {
                 .transition(this::shotTimedOut, State.SHOT_TIMEOUT)
                 .transition(() -> shotComplete() && (!pathTest || advancePressed), State.TO_GARDEN, () -> {
                     context.runMechanism(robot -> robot.intake.collect());
-                    follower.follow(paths.startToGarden);
+                    gardenApproach.start();
                 })
                 .state(State.TO_GARDEN)
-                .transition(() -> canLeaveIntakePath(!follower.isBusy(), gardenCollect,
+                .loop(gardenApproach::update)
+                .transition(() -> canLeaveIntakePath(gardenApproach.result() == Action.Result.SUCCEEDED
+                        || gardenApproach.result() == Action.Result.TIMED_OUT, gardenCollect,
                         GARDEN_WAIT_SECONDS, GARDEN_SHIMMY_INCHES), State.CROSS_FIELD, () -> {
-                    context.runMechanism(robot -> robot.outtake.setTargetCell(TurretAim.Cell.FAR));
+                    context.runMechanism(robot -> {
+                        robot.outtake.setTargetCell(TurretAim.Cell.FAR);
+                        // Temporary RPM adjustment for the second shot.
+                        robot.outtake.setShotOffsets(20, 0, 0);
+                    });
                     follower.follow(paths.gardenToRearFlowerLineup);
                 })
                 .state(State.CROSS_FIELD)
@@ -94,7 +102,10 @@ public final class TwoTipRoutine implements AutoRoutine {
                 .state(State.SHOOT_GARDEN)
                 .loop(shoot::update)
                 .transition(this::shotTimedOut, State.SHOT_TIMEOUT)
-                .transition(this::shotComplete, State.TURN_TO_FLOWER, () -> follower.hold(turnTarget))
+                .transition(this::shotComplete, State.TURN_TO_FLOWER, () -> {
+                    context.runMechanism(robot -> robot.outtake.setShotOffsets(0, 0, 0));
+                    follower.hold(turnTarget);
+                })
                 .state(State.TURN_TO_FLOWER)
                 .transition(() -> canAdvanceAfter(atTurnTarget(follower.pose(), turnTarget)), State.TO_FLOWER_INTAKE, () -> {
                     context.runMechanism(robot -> {
@@ -222,6 +233,7 @@ public final class TwoTipRoutine implements AutoRoutine {
         gardenCollect.stop();
         flowerCollect.stop();
         flowerApproach.stop();
+        gardenApproach.stop();
         if (!isFinished()) result = Result.CANCELLED;
     }
 

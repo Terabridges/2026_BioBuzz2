@@ -70,7 +70,7 @@ public class TwoTipRoutineTest {
         routine.update();
         assertEquals(1, follower.paths.size());
         assertTrue(routine.state().contains("Press A to advance"));
-        assertEquals(1, follower.stopCommands);
+        assertEquals(2, follower.stopCommands);
 
         updateWithButton(routine, false);
         updateWithButton(routine, true);
@@ -108,6 +108,7 @@ public class TwoTipRoutineTest {
         @Override public void hold(Pose pose) { turnCommands++; this.pose = pose; }
         @Override public Pose pose() { return pose; }
         @Override public boolean isBusy() { return busy; }
+        @Override public double remainingDistance() { return 10; }
         @Override public void stop() { stopCommands++; busy = false; }
     }
 }

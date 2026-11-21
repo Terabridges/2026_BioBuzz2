@@ -62,7 +62,7 @@ public final class FieldPoses {
         private static final PoseFactory DEGREES = PoseFactory.degrees();
         private static final Pose REAR_FLOWER_ANCHOR = FieldLandmarks.FLOWER_REAR_LEFT_WALL_ANCHOR;
 
-        public static final Pose GARDEN = DEGREES.of(8.5, 8.5, 270);
+        public static final Pose GARDEN = DEGREES.of(8.5, 8.0, 270);
         public static final Pose GARDEN_CONTROL = DEGREES.of(19.5, 21.0007, 0);
         public static final Pose CROSS_FIELD_CONTROL_1 = DEGREES.of(8.5, 24.5, 0);
         public static final Pose CROSS_FIELD_CONTROL_2 = DEGREES.of(40.25, 56.5, 0);
