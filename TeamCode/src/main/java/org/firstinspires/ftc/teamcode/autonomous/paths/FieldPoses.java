@@ -15,9 +15,10 @@ public final class FieldPoses {
             24.0 + RobotGeometry.robotHalfWidth,
             RobotGeometry.robotHalfLength + RobotGeometry.wall, Math.toRadians(270));
 
+    // The wall gap is subtracted here: the rear wall is at y = 144, so moving away from it means smaller y
     public static final Pose RED_REAR_START = new Pose(
             FieldLandmarks.FIELD_CENTER_INCHES - RobotGeometry.robotHalfWidth,
-            FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength + RobotGeometry.wall,
+            FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength - RobotGeometry.wall,
             Math.toRadians(90));
 
     // Switching alliances also switches which end of the field the pose is on.
@@ -43,15 +44,16 @@ public final class FieldPoses {
      * audience: the same sides as each alliance's hive). Close = the audience-wall corner, back against the
      * audience wall, facing +Y. Far = the rear-wall corner, back against the rear wall, facing -Y.
      * Either way the robot faces away from the wall behind it. Used for TeleOp pose resets.
-     * Red close is the same pose as {@link #AUDIENCE_LEFT_CORNER_START}.
+     * Both axes include the {@link RobotGeometry#wall} gap, moved away from each wall, so red close is
+     * {@link #AUDIENCE_LEFT_CORNER_START} plus the gap: the same as MainTeleOp's start pose.
      */
     public static Pose allianceCorner(Alliance alliance, boolean far) {
         double x = alliance == Alliance.RED
-                ? RobotGeometry.robotHalfWidth
-                : FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfWidth;
+                ? RobotGeometry.robotHalfWidth + RobotGeometry.wall
+                : FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfWidth - RobotGeometry.wall;
         double y = far
-                ? FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength
-                : RobotGeometry.robotHalfLength;
+                ? FieldLandmarks.FIELD_SIZE_INCHES - RobotGeometry.robotHalfLength - RobotGeometry.wall
+                : RobotGeometry.robotHalfLength + RobotGeometry.wall;
         return new Pose(x, y, Math.toRadians(far ? -90 : 90));
     }
 

@@ -281,8 +281,9 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   exist for the test OpModes that override `updateButtons()` with their own buttons.
 - `MainTeleOp` uses the `PEDRO` backend (aiming needs the pose), **rates off** (`USE_RATES = false`: linear sticks with
   the same deadzone and max output), robot-centric, and resumes the
-  autonomous pose. Without one, it sets the corner start pose **(7.58, 8.19) heading 90°** at Start, the same
-  as Test Shot. `DriveManager.follower()` gives the Pedro follower for reading and resetting the pose (PEDRO
+  autonomous pose. Without one, it sets the corner start pose **(8.58, 9.19) heading 90°** at Start:
+  `AUDIENCE_LEFT_CORNER_START` plus `RobotGeometry.wall` (1 in.) on both axes, the same as a red close reset.
+  Test Shot and the Shot Data Collector still use the corner without the gap, (7.58, 8.19). `DriveManager.follower()` gives the Pedro follower for reading and resetting the pose (PEDRO
   backend only), and `resumedFromAuto()` says whether the pose came from autonomous.
 - `Robot` doesn't own a drive any more (only the `(HardwareMap, Telemetry)` constructor). The old `Drive`
   subsystem class and `Drive2_0` are gone.
@@ -567,8 +568,12 @@ between runs until the Robot Controller app restarts**; it starts red. It goes t
 no-auto start pose is still the red (audience-left) corner whatever the alliance.
 
 **Reset corners (user, 2026-11-21)** come from `FieldPoses.allianceCorner(alliance, far)`, robot center from
-`RobotGeometry`: red = left wall x 7.58, blue = right wall x 136.42; close y 8.19, far y 135.81. Red close is
-`AUDIENCE_LEFT_CORNER_START`. Pedro stores −90° as 270°.
+`RobotGeometry`, plus the `RobotGeometry.wall` gap (1 in.) moved away from each wall (added 2026-11-21):
+red = left wall x 8.58, blue = right wall x 135.42; close y 9.19, far y 134.81. Red close is
+`AUDIENCE_LEFT_CORNER_START` + the gap, the same as MainTeleOp's start pose. Pedro stores −90° as 270°.
+**Wall gap rule:** every pose against a wall is moved *away* from it by `wall` (+ from the audience/left
+walls, − from the rear/right walls). `RED_REAR_START` had `+ wall` (1 in. into the rear wall, so
+`BLUE_AUDIENCE_START` was 1 in. into the audience wall); fixed to `- wall` on 2026-11-21.
 
 **Gyro recalibrate (user, 2026-11-21):** gamepad 2 Y calls the Pinpoint's `recalibrateIMU()` (new gyro zero,
 ~0.25 s, robot must be still; keeps x, y and heading). It slows future drift but doesn't fix heading error

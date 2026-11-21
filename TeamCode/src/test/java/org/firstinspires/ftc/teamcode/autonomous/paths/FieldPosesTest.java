@@ -12,6 +12,7 @@ import org.junit.Test;
 public class FieldPosesTest {
     private static final double HALF_W = RobotGeometry.robotHalfWidth;   // 7.58 in.
     private static final double HALF_L = RobotGeometry.robotHalfLength;  // 8.19 in.
+    private static final double WALL = RobotGeometry.wall;               // 1 in. gap from each wall
 
     private static void assertPose(Pose pose, double x, double y, double headingDeg) {
         assertEquals(x, pose.x(), 1e-9);
@@ -21,18 +22,20 @@ public class FieldPosesTest {
         assertEquals(0, ((diff % 360) + 540) % 360 - 180, 1e-9);
     }
 
-    @Test public void redCloseIsTheAudienceLeftCornerStart() {
+    // Same as MainTeleOp's start pose, so a close reset puts the robot where TeleOp thinks it started
+    @Test public void redCloseIsTheAudienceLeftCornerStartPlusTheWallGap() {
         Pose start = FieldPoses.AUDIENCE_LEFT_CORNER_START;
-        assertPose(FieldPoses.allianceCorner(Alliance.RED, false), start.x(), start.y(), Math.toDegrees(start.heading()));
+        assertPose(FieldPoses.allianceCorner(Alliance.RED, false),
+                start.x() + WALL, start.y() + WALL, Math.toDegrees(start.heading()));
     }
 
     @Test public void redFarIsTheRearLeftCornerFacingTheAudience() {
-        assertPose(FieldPoses.allianceCorner(Alliance.RED, true), HALF_W, 144 - HALF_L, -90);
+        assertPose(FieldPoses.allianceCorner(Alliance.RED, true), HALF_W + WALL, 144 - HALF_L - WALL, -90);
     }
 
     @Test public void blueCornersAreOnTheRightWall() {
-        assertPose(FieldPoses.allianceCorner(Alliance.BLUE, false), 144 - HALF_W, HALF_L, 90);
-        assertPose(FieldPoses.allianceCorner(Alliance.BLUE, true), 144 - HALF_W, 144 - HALF_L, -90);
+        assertPose(FieldPoses.allianceCorner(Alliance.BLUE, false), 144 - HALF_W - WALL, HALF_L + WALL, 90);
+        assertPose(FieldPoses.allianceCorner(Alliance.BLUE, true), 144 - HALF_W - WALL, 144 - HALF_L - WALL, -90);
     }
 
     @Test public void oppositeAllianceRotatesPositionAndHeadingAboutFieldCenter() {
@@ -42,11 +45,11 @@ public class FieldPosesTest {
         assertPose(FieldPoses.rotateForOppositeAlliance(bluePose), 30, 40, 35);
     }
 
+    // Every start pose is moved away from the end wall it's against, never into it
     @Test public void autonomousStartsMatchTheSelectedEndOfTheField() {
-        double wall = 1.0;
-        assertPose(FieldPoses.RED_AUDIENCE_START, 24 + HALF_W, HALF_L + wall, 270);
-        assertPose(FieldPoses.RED_REAR_START, 72 - HALF_W, 144 - HALF_L + wall, 90);
-        assertPose(FieldPoses.BLUE_AUDIENCE_START, 72 + HALF_W, HALF_L - wall, 270);
-        assertPose(FieldPoses.BLUE_REAR_START, 120 - HALF_W, 144 - HALF_L - wall, 90);
+        assertPose(FieldPoses.RED_AUDIENCE_START, 24 + HALF_W, HALF_L + WALL, 270);
+        assertPose(FieldPoses.RED_REAR_START, 72 - HALF_W, 144 - HALF_L - WALL, 90);
+        assertPose(FieldPoses.BLUE_AUDIENCE_START, 72 + HALF_W, HALF_L + WALL, 270);
+        assertPose(FieldPoses.BLUE_REAR_START, 120 - HALF_W, 144 - HALF_L - WALL, 90);
     }
 }
