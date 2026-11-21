@@ -4,15 +4,17 @@ import com.pedropathing.api.Paths;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
 
-/** Builds autonomous paths between robot-center poses. */
+/** Example paths built once when a routine is created. */
 public final class AutoPaths {
-    /**
-     * Builds a straight path between two robot poses with linear heading interpolation.
-     * A routine can build it once when it is created, then follow it when ready to drive.
-     */
-    public static Path buildPaths(Pose startPose, Pose endPose) {
-        return Paths.line(startPose, endPose).linear(startPose, endPose);
-    }
+    public final Path startToScore;
+    public final Path scoreToPark;
 
-    private AutoPaths() {}
+    public AutoPaths(Pose startPose, Pose scorePose, Pose parkControlPoint, Pose parkPose) {
+        startToScore = Paths.line(startPose, scorePose)
+                .linear(startPose, scorePose);
+
+        // The robot follows the curve shaped by the control point between the endpoints.
+        scoreToPark = Paths.curve(scorePose, parkControlPoint, parkPose)
+                .linear(scorePose, parkPose);
+    }
 }
