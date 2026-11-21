@@ -47,6 +47,12 @@ public class Lights implements Subsystem {
     }
 
     //---------------- Methods ----------------
+    public static double colorForBallCount(int ballCount) {
+        if (ballCount <= 0) return OFF;
+        if (ballCount >= 4) return GREEN;
+        return ORANGE;
+    }
+
     // Only marks a change when the color is different, so the same color isn't rewritten every loop
     public void setLightLeftPos(double pos){
         if (pos == lightLeftPos) return;

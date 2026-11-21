@@ -27,7 +27,6 @@ public class Transfer implements Subsystem {
     private final double blockerMax = 0.66;
     private final double blockerClosedPos = 0.52;
     private final double blockerOpenPos = 0.62;
-    private final double blockerStart = blockerClosedPos;
     private boolean blockerOpen = false;
 
     private final double transferDefaultPow = 1.0;
@@ -101,14 +100,17 @@ public class Transfer implements Subsystem {
     @Override
     public void init(){
         stop();
-        closeBlocker();
     }
 
     @Override
     public void stop(){
         transferPow = 0;
-        blockerChanged = false;
-        setTransfer(0);
+        closeBlocker();
+        try {
+            setTransfer(0);
+        } finally {
+            writeBlocker();
+        }
     }
 
     @Override
@@ -116,8 +118,12 @@ public class Transfer implements Subsystem {
         setTransfer(transferPow);
 
         if (blockerChanged){
-            setBlocker(blockerPos);
-            blockerChanged = false;
+            writeBlocker();
         }
+    }
+
+    private void writeBlocker() {
+        setBlocker(blockerPos);
+        blockerChanged = false;
     }
 }

@@ -46,10 +46,12 @@ public final class AutoContext {
     }
 
     private static final class SkippedAction implements Action {
-        private boolean finished;
-        @Override public void start() { finished = true; }
+        private Result result = Result.READY;
+        @Override public void start() { result = Result.SUCCEEDED; }
         @Override public void update() {}
-        @Override public boolean isFinished() { return finished; }
-        @Override public void stop() { finished = true; }
+        @Override public Result result() { return result; }
+        @Override public void stop() {
+            if (!isFinished()) result = Result.CANCELLED;
+        }
     }
 }

@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.actions.Action;
+import org.firstinspires.ftc.teamcode.autonomous.routines.ShootPreloadRoutine;
+import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 import org.junit.Test;
 
 /**
@@ -40,5 +42,13 @@ public class AutoContextTest {
         } catch (IllegalStateException expected) {
             assertTrue(expected.getMessage().contains("requiresRobot"));
         }
+    }
+
+    @Test public void preloadRoutinePathTestCompletesWithoutMechanismsOrOdometryReadiness() {
+        AutoRoutine routine = new ShootPreloadRoutine(context(AutoContext.Mode.PATH_TEST), TurretAim.Cell.CLOSE);
+        routine.start();
+        routine.update();
+        routine.stop();
+        assertEquals(AutoRoutine.Result.SUCCEEDED, routine.result());
     }
 }

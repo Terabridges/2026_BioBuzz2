@@ -60,6 +60,7 @@ public abstract class BaseAutoOpMode extends OpMode {
         followerManager = new FollowerManager(hardwareMap, follower);
         if (executionMode() != AutoContext.Mode.PATH_TEST && usesRobot()) {
             robot = createRobot();
+            robot.outtake.setMotionSource(follower::pose, follower::velocity);
             robot.toInit();
         }
         config = selectedConfig();
@@ -132,7 +133,7 @@ public abstract class BaseAutoOpMode extends OpMode {
                 if (followerManager != null) followerManager.stop();
             }
         }
-        if (started && !failed && executionMode() == AutoContext.Mode.COMPETITION) {
+        if (started && !failed && config.allowPoseHandoff && executionMode() == AutoContext.Mode.COMPETITION) {
             followerManager.handoffToTeleOp();
         }
     }

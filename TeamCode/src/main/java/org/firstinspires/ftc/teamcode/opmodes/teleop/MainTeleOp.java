@@ -80,11 +80,10 @@ public class MainTeleOp extends OpMode {
         drive.initialize(hardwareMap, true);
         robot = new Robot(hardwareMap, telemetry);
         // The pose and velocity are only asked for after Start, once the drive is running
-        outtakeControl = new OuttakeControl(robot, () -> drive.follower().pose(),
-                () -> drive.follower().velocity(), gamepad1, gamepad2);
+        robot.outtake.setMotionSource(() -> drive.follower().pose(), () -> drive.follower().velocity());
+        outtakeControl = new OuttakeControl(robot.outtake, robot.intake.spinner, gamepad1, gamepad2);
         outtakeControl.setAlliance(alliance);
-        intakeControl = new IntakeControl(robot.intake, gamepad1, gamepad2, outtakeControl::isFiring);
-        // Outtake goes before intake: it decides whether to fire, and the intake feeds the balls when it does
+        intakeControl = new IntakeControl(robot.intake, gamepad1);
         mechanismControls = new Control[]{
                 new VisionControl(robot.vision, gamepad1, gamepad2),
                 outtakeControl,

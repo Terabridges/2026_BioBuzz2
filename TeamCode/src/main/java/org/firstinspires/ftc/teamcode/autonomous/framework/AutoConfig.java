@@ -14,12 +14,20 @@ public final class AutoConfig {
     public final Alliance alliance;
     public final StartSide startSide;
     public final Pose startPose;
+    public final boolean allowPoseHandoff;
 
     public AutoConfig(String name, Alliance alliance, StartSide startSide, Pose startPose) {
+        this(name, alliance, startSide, startPose, true);
+    }
+
+    /** Disable handoff for a placeholder pose or a diagnostic placement. */
+    public AutoConfig(String name, Alliance alliance, StartSide startSide, Pose startPose,
+                      boolean allowPoseHandoff) {
         this.name = Objects.requireNonNull(name);
         this.alliance = Objects.requireNonNull(alliance);
         this.startSide = Objects.requireNonNull(startSide);
         this.startPose = Objects.requireNonNull(startPose);
+        this.allowPoseHandoff = allowPoseHandoff;
     }
 
     public String selectionLabel() {

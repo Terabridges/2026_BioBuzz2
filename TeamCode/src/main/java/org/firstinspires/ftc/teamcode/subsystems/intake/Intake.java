@@ -1,11 +1,8 @@
 package org.firstinspires.ftc.teamcode.subsystems.intake;
 
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
-import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
-import org.psilynx.psikit.core.Logger;
 
 public class Intake implements Subsystem {
 
@@ -14,8 +11,12 @@ public class Intake implements Subsystem {
     public Spinner spinner;
     public Transfer transfer;
 
-    //---------------- Software ----------------
+    public enum Mode { STOPPED, INTAKING, FULL, OUTTAKING, FIRING }
 
+    private static final double HOLD_POWER = 0.3;
+    // Diagnostics can command the motors directly until a control or action requests a mode.
+    private Mode requestedMode;
+    private Mode mode = Mode.STOPPED;
 
     //---------------- Constructor ----------------
     public Intake(HardwareMap map) {
@@ -50,9 +51,58 @@ public class Intake implements Subsystem {
         transfer.setTransferZero();
     }
 
+    public void collect() { requestedMode = Mode.INTAKING; }
+    public void eject() { requestedMode = Mode.OUTTAKING; }
+    public void stopCollecting() { requestedMode = Mode.STOPPED; }
+    public Mode getMode() { return mode; }
+
+    /** Resolve collection, driver eject override, and the outtake's feed request in one place. */
+    public void updateCommands(boolean firing) {
+        if (requestedMode == Mode.OUTTAKING) {
+            mode = Mode.OUTTAKING;
+            intakeOut();
+        } else if (firing) {
+            mode = Mode.FIRING;
+            intakeIn();
+        } else if (requestedMode == Mode.INTAKING) {
+            if (spinner.isFull()) {
+                mode = Mode.FULL;
+                intakeIn(HOLD_POWER);
+            } else {
+                mode = Mode.INTAKING;
+                spinner.setSpinnerSpinIn();
+                if (spinner.isSensor4Broken()) transfer.setTransferIn(HOLD_POWER);
+                else transfer.setTransferIn();
+            }
+        } else if (requestedMode == Mode.STOPPED || mode == Mode.FIRING) {
+            mode = Mode.STOPPED;
+            intakeStop();
+        } else {
+            return;
+        }
+
+        boolean open = mode == Mode.FIRING;
+        if (open != transfer.isBlockerOpen()) {
+            if (open) transfer.openBlocker();
+            else transfer.closeBlocker();
+        }
+    }
+
+    /** Stop the feed motors and close the blocker even if the OpMode never updates again. */
+    public void stopFeed() {
+        mode = Mode.STOPPED;
+        try {
+            spinner.stop();
+        } finally {
+            transfer.stop();
+        }
+    }
+
     //---------------- Interface Methods ----------------
     @Override
     public void init(){
+        requestedMode = null;
+        mode = Mode.STOPPED;
         ramp.init();
         spinner.init();
         transfer.init();
@@ -67,11 +117,11 @@ public class Intake implements Subsystem {
 
     @Override
     public void stop(){
+        requestedMode = null;
         try {
-            spinner.stop();
+            stopFeed();
         } finally {
-            transfer.stop();
+            ramp.stop();
         }
-        ramp.stop();
     }
 }

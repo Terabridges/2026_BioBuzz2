@@ -9,8 +9,14 @@ package org.firstinspires.ftc.teamcode.actions;
  * can skip mechanisms while preserving the route sequence.
  */
 public interface Action {
+    enum Result { READY, RUNNING, SUCCEEDED, TIMED_OUT, CANCELLED }
+
     void start();
     void update();
-    boolean isFinished();
     void stop();
+    Result result();
+
+    default boolean isFinished() {
+        return result() != Result.READY && result() != Result.RUNNING;
+    }
 }

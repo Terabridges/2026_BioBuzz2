@@ -42,7 +42,7 @@ public final class AutoCatalog {
 
     private static Entry doNothing(Alliance alliance, StartSide side) {
         // No driving takes place. This local origin is not a measured start for a real route.
-        return new Entry(new AutoConfig("Do Nothing", alliance, side, FieldPoses.TEST_START),
+        return new Entry(new AutoConfig("Do Nothing", alliance, side, FieldPoses.TEST_START, false),
                 false, context -> new DoNothingRoutine());
     }
     private AutoCatalog() {}
