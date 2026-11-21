@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.autonomous.routines.TwoTipRoutine;
  * Entries are grouped by alliance and starting side using their AutoConfig fields.
  * An entry pairs its configuration with a factory that creates a fresh routine.
  * Set requiresRobot to true when the routine uses mechanism actions.
- * The competition menu initializes Robot if any entry needs it; path-test mode never does.
+ * Competition initializes Robot at Start when the selected entry needs it.
  */
 public final class AutoCatalog {
     public static final class Entry {

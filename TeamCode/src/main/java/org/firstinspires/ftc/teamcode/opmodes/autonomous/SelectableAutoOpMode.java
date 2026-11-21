@@ -28,9 +28,7 @@ public abstract class SelectableAutoOpMode extends BaseAutoOpMode {
     }
 
     @Override protected final boolean usesRobot() {
-        if (executionMode() == AutoContext.Mode.PATH_TEST) return false;
-        // Init precedes selection. Only initialize Robot if the competition menu needs it.
-        return AutoCatalog.ENTRIES.stream().anyMatch(entry -> entry.requiresRobot);
+        return menu.selected().requiresRobot;
     }
 
     @Override protected final void updateSelection() {

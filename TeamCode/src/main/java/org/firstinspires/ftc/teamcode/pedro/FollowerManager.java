@@ -98,7 +98,12 @@ public final class FollowerManager {
     public void stop() {
         if (stopped || released) return;
         stopped = true;
-        follower.stop();
+        try {
+            follower.stop();
+        } finally {
+            // Pedro clears tracking on stop. No subsequent update will zero the drive motors.
+            if (follower.drivetrain != null) follower.drivetrain.stop();
+        }
     }
 
     /** Publish only after the auto's routine and mechanisms have stopped successfully. */

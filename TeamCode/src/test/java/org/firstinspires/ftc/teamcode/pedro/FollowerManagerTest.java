@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.pedro;
 
 import static org.junit.Assert.*;
 
+import com.pedropathing.drivetrain.DrivePowers;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.pedropathing.revhub.drivetrains.Mecanum;
@@ -120,10 +121,12 @@ public class FollowerManagerTest {
         };
         Map<String, DcMotorSimple.Direction> directions = new HashMap<>();
         Map<String, DcMotor.ZeroPowerBehavior> braking = new HashMap<>();
+        Map<String, Double> powers = new HashMap<>();
         for (String name : new String[]{"fl", "fr", "bl", "br"}) {
             DcMotorEx motor = (DcMotorEx) Proxy.newProxyInstance(DcMotorEx.class.getClassLoader(),
                     new Class<?>[]{DcMotorEx.class}, (proxy, method, args) -> {
                         if (method.getName().equals("setDirection")) directions.put(name, (DcMotorSimple.Direction) args[0]);
+                        if (method.getName().equals("setPower")) powers.put(name, (double) args[0]);
                         if (method.getName().equals("setZeroPowerBehavior")) braking.put(name, (DcMotor.ZeroPowerBehavior) args[0]);
                         if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
                         if (method.getName().equals("equals")) return proxy == args[0];
@@ -144,7 +147,12 @@ public class FollowerManagerTest {
             c.manualBrakeMode.set(true);
         });
         TestFollower follower = new TestFollower(new Mecanum(map, config));
-        new FollowerManager(map, follower).handoffToTeleOp();
+        FollowerManager auto = new FollowerManager(map, follower);
+        follower.drivetrain.drive(new DrivePowers(0, 0.4, 0), false);
+        assertTrue(powers.values().stream().anyMatch(power -> power != 0));
+        auto.handoffToTeleOp();
+        assertEquals(4, powers.size());
+        assertTrue(powers.values().stream().allMatch(power -> power == 0));
         // Simulate the SDK resetting the raw motors between auto and TeleOp.
         directions.replaceAll((name, direction) -> DcMotorSimple.Direction.FORWARD);
         braking.replaceAll((name, behavior) -> DcMotor.ZeroPowerBehavior.FLOAT);

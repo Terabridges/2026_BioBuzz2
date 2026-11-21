@@ -104,6 +104,16 @@ public class BaseAutoOpModeTest {
         assertEquals(1, auto.nextRoutine.updates);
     }
 
+    @Test public void competitionInitLeavesMechanismsAndDriveIdle() {
+        TestAuto auto = new TestAuto();
+        auto.mode = AutoContext.Mode.COMPETITION;
+        auto.init();
+        auto.init_loop();
+        assertEquals(0, auto.follower.updates);
+        assertNull(auto.createdContext);
+        auto.stop();
+    }
+
     @Test public void completionCleansUpOnceAndStopsFurtherUpdates() {
         TestAuto auto = new TestAuto();
         auto.nextRoutine.finishOnUpdate = true;

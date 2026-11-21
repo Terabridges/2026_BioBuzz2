@@ -15,8 +15,6 @@ public class Ramp implements Subsystem {
 
     //---------------- Software ----------------
     private final double rightRampOffset = 0.024;
-    private final double rampStart = 0.5;
-    private double rampPos = rampStart;
 
     private boolean rampChanged = false;
     private boolean rampUp = false;
@@ -25,6 +23,9 @@ public class Ramp implements Subsystem {
     private final double rampMaxPos = 0.7;
     private final double rampDownPos = 0.475;
     private final double rampUpPos = 0.695;
+    private final double rampStart = rampUpPos;
+    private double rampPos = rampStart;
+
 
     //---------------- Constructor ----------------
     public Ramp(HardwareMap map) {
@@ -77,7 +78,7 @@ public class Ramp implements Subsystem {
 
     @Override
     public void init(){
-        setRampUp();
+
     }
 
     @Override

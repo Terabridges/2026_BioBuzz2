@@ -61,11 +61,6 @@ public abstract class BaseAutoOpMode extends OpMode {
         resetSelection();
         follower = createFollower();
         followerManager = new FollowerManager(hardwareMap, follower);
-        if (executionMode() != AutoContext.Mode.PATH_TEST && usesRobot()) {
-            robot = createRobot();
-            robot.outtake.setMotionSource(follower::pose, follower::velocity);
-            robot.toInit();
-        }
         config = selectedConfig();
         follower.setPose(config.startPose);
         showTelemetry();
@@ -78,13 +73,17 @@ public abstract class BaseAutoOpMode extends OpMode {
             config = selected;
             follower.setPose(config.startPose);
         }
-        followerManager.update();
         showTelemetry();
     }
 
     @Override public final void start() {
         // Selection is frozen from here onward; nothing moves in init_loop.
         try {
+            if (executionMode() != AutoContext.Mode.PATH_TEST && usesRobot()) {
+                robot = createRobot();
+                robot.outtake.setMotionSource(follower::pose, follower::velocity);
+                robot.toInit();
+            }
             follower.setPose(config.startPose);
             routine = createRoutine(new AutoContext(
                     config, follower, robot, executionMode(), this::pathTestAdvanceDown));

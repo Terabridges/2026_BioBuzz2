@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.autonomous.routines;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.sfdev.assembly.state.StateMachine;
 import com.sfdev.assembly.state.StateMachineBuilder;
 import org.firstinspires.ftc.teamcode.actions.Action;
@@ -16,6 +17,14 @@ import org.firstinspires.ftc.teamcode.autonomous.paths.TwoTipPaths;
 
 /** Red Audience Two Tip route, with a manual checkpoint before each movement in path test mode. */
 public final class TwoTipRoutine implements AutoRoutine {
+    private static final double GARDEN_WAIT_SECONDS = 0.75;
+    private static final double GARDEN_SHIMMY_SECONDS = 1.5;
+    private static final double FLOWER_WAIT_SECONDS = 1.0;
+    private static final double FLOWER_SHIMMY_SECONDS = 1.25;
+    private static final double SHIMMY_STEP_SECONDS = 0.25;
+    private static final double GARDEN_SHIMMY_INCHES = 2.0;
+    private static final double FLOWER_SHIMMY_INCHES = 1.0;
+
     private enum State {
         SHOOT_PRELOAD("Shoot preload"),
         TO_GARDEN("1/5 Start to Garden"),
@@ -39,7 +48,11 @@ public final class TwoTipRoutine implements AutoRoutine {
     private final boolean pathTest;
     private final StallProtectedPathAction flowerApproach;
     private final Action shoot;
-    private final Action finishCollecting;
+    private final Action flowerCollect;
+    private final Action gardenCollect;
+    private final ElapsedTime collectionTimer = new ElapsedTime();
+    private Pose shimmyCenter;
+    private int lastShimmyStep;
     private final StateMachine machine;
     private boolean previousAdvance;
     private boolean advancePressed;
@@ -52,7 +65,10 @@ public final class TwoTipRoutine implements AutoRoutine {
         TwoTipPaths paths = new TwoTipPaths(context.config.startPose);
         flowerApproach = new StallProtectedPathAction(context.follower, paths.rearFlowerApproach);
         shoot = context.mechanismAction(robot -> new ShootAction(robot.outtake, robot.intake, () -> true, 5.0));
-        finishCollecting = context.mechanismAction(robot -> new CollectAction(robot.intake, 4, 2.0));
+        flowerCollect = context.mechanismAction(robot ->
+                new CollectAction(robot.intake, 4, FLOWER_WAIT_SECONDS + FLOWER_SHIMMY_SECONDS));
+        gardenCollect = context.mechanismAction(robot ->
+                new CollectAction(robot.intake, 4, GARDEN_WAIT_SECONDS + GARDEN_SHIMMY_SECONDS));
         machine = buildMachine(paths);
     }
 
@@ -68,7 +84,8 @@ public final class TwoTipRoutine implements AutoRoutine {
                     follower.follow(paths.startToGarden);
                 })
                 .state(State.TO_GARDEN)
-                .transition(() -> canLeaveIntakePath(!follower.isBusy()), State.CROSS_FIELD, () -> {
+                .transition(() -> canLeaveIntakePath(!follower.isBusy(), gardenCollect,
+                        GARDEN_WAIT_SECONDS, GARDEN_SHIMMY_INCHES), State.CROSS_FIELD, () -> {
                     context.runMechanism(robot -> robot.outtake.setTargetCell(TurretAim.Cell.FAR));
                     follower.follow(paths.gardenToRearFlowerLineup);
                 })
@@ -90,7 +107,8 @@ public final class TwoTipRoutine implements AutoRoutine {
                 .loop(flowerApproach::update)
                 // A stall stops the drivetrain, then collection continues just as it does at the endpoint.
                 .transition(() -> canLeaveIntakePath(flowerApproach.result() == Action.Result.SUCCEEDED
-                                || flowerApproach.result() == Action.Result.TIMED_OUT),
+                                || flowerApproach.result() == Action.Result.TIMED_OUT,
+                        flowerCollect, FLOWER_WAIT_SECONDS, FLOWER_SHIMMY_INCHES),
                         State.SHOOT_FLOWER, shoot::start)
                 .state(State.SHOOT_FLOWER)
                 .loop(shoot::update)
@@ -98,7 +116,11 @@ public final class TwoTipRoutine implements AutoRoutine {
                 .transition(this::shotComplete, State.TO_PARK, () -> follower.follow(paths.flowerToPark))
 
                 .state(State.TO_PARK)
-                .transition(() -> !follower.isBusy(), State.DONE)
+                .transition(() -> !follower.isBusy(), State.DONE, () -> context.runMechanism(robot -> {
+                    robot.intake.ramp.setRampUp();
+                    // The OpMode stops this loop, so apply the servo command now.
+                    robot.intake.ramp.update();
+                }))
                 .state(State.SHOT_TIMEOUT)
                 .state(State.DONE)
                 .build();
@@ -107,13 +129,37 @@ public final class TwoTipRoutine implements AutoRoutine {
     private boolean shotComplete() { return shoot.result() == Action.Result.SUCCEEDED; }
     private boolean shotTimedOut() { return shoot.result() == Action.Result.TIMED_OUT; }
 
-    private boolean canLeaveIntakePath(boolean pathFinished) {
+    private boolean canLeaveIntakePath(boolean pathFinished, Action collect, double waitSeconds, double shimmyInches) {
+        Follower follower = context.follower;
         if (pathTest) return canAdvanceAfter(pathFinished);
-        if (!pathFinished) return false;
-        // Collection is already active. Start its two-second deadline only at the endpoint.
-        if (finishCollecting.result() != Action.Result.RUNNING) finishCollecting.start();
-        finishCollecting.update();
-        return finishCollecting.isFinished();
+        if (shimmyCenter == null) {
+            if (!pathFinished) return false;
+            shimmyCenter = follower.pose();
+            collectionTimer.reset();
+            lastShimmyStep = -1;
+            collect.start();
+        }
+        collect.update();
+        if (collect.isFinished()) {
+            if (lastShimmyStep >= 0) follower.stop();
+            shimmyCenter = null;
+            return true;
+        }
+
+        double shimmyTime = collectionTimer.seconds() - waitSeconds;
+        if (shimmyTime >= 0) {
+            int step = (int) (shimmyTime / SHIMMY_STEP_SECONDS) % 4;
+            if (step != lastShimmyStep) {
+                // Back, forward to center, left, right to center in the robot's frame.
+                double forward = step == 0 ? -shimmyInches : 0;
+                double left = step == 2 ? shimmyInches : 0;
+                double h = shimmyCenter.heading();
+                follower.hold(new Pose(shimmyCenter.x() + forward * Math.cos(h) - left * Math.sin(h),
+                        shimmyCenter.y() + forward * Math.sin(h) + left * Math.cos(h), h));
+                lastShimmyStep = step;
+            }
+        }
+        return false;
     }
 
     private boolean canAdvanceAfterDrive() {
@@ -144,6 +190,7 @@ public final class TwoTipRoutine implements AutoRoutine {
         previousAdvance = context.pathTestAdvanceDown();
         advancePressed = false;
         waitingForAdvance = false;
+        shimmyCenter = null;
         result = Result.RUNNING;
         context.runMechanism(robot -> robot.outtake.enableShooting(context.config.alliance, TurretAim.Cell.CLOSE));
         shoot.start();
@@ -172,7 +219,8 @@ public final class TwoTipRoutine implements AutoRoutine {
     @Override public void stop() {
         machine.stop();
         shoot.stop();
-        finishCollecting.stop();
+        gardenCollect.stop();
+        flowerCollect.stop();
         flowerApproach.stop();
         if (!isFinished()) result = Result.CANCELLED;
     }
@@ -183,6 +231,10 @@ public final class TwoTipRoutine implements AutoRoutine {
         if (result == Result.TIMED_OUT) return ((State) machine.getState()).label;
         if (result != Result.RUNNING) return result.name();
         State current = (State) machine.getState();
+        if (shimmyCenter != null) {
+            String location = current == State.TO_GARDEN ? "Garden" : "Flower";
+            return (lastShimmyStep < 0 ? "Collecting at " : "Shimmy at ") + location;
+        }
         if (pathTest && current == State.SHOOT_PRELOAD) return "Press A for " + State.TO_GARDEN.label;
         if (waitingForAdvance) return "Press A to advance | Finished " + current.label;
         return "Running " + current.label;
