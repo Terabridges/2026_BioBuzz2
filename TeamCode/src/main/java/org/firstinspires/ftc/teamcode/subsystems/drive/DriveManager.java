@@ -16,7 +16,7 @@ public final class DriveManager {
     private DirectDrive direct;
     private FollowerManager manager;
     private Drive drive;
-    private GoBildaPinpointDriver pinpoint;
+    private HardwareMap hardwareMap;
 
     public DriveManager(Backend backend) {
         this.backend = backend;
@@ -43,8 +43,7 @@ public final class DriveManager {
                 direct = new DirectDrive(map);
                 drive = direct;
             }
-            // The same device both backends read (hardwareMap hands back the same object)
-            pinpoint = map.get(GoBildaPinpointDriver.class, "pinpoint");
+            hardwareMap = map;
         } catch (RuntimeException failure) {
             stop();
             throw failure;
@@ -99,7 +98,7 @@ public final class DriveManager {
      */
     public void recalibrateImu() {
         if (!started || stopped) throw new IllegalStateException("Drive is not active");
-        pinpoint.recalibrateIMU();
+        hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint").recalibrateIMU();
     }
 
     /** True when the pose came from autonomous, so it shouldn't be overwritten with a start pose. */
