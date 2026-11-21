@@ -21,8 +21,13 @@ public final class DriveManager {
     }
 
     public void start(HardwareMap map, boolean resumeFromAuto) {
-        if (started || stopped) throw new IllegalStateException("Drive session has already started or stopped");
-        started = true;
+        initialize(map, resumeFromAuto);
+        start();
+    }
+
+    /** Prepare the drive and its localizer while the robot is stationary during OpMode INIT. */
+    public void initialize(HardwareMap map, boolean resumeFromAuto) {
+        if (drive != null || stopped) throw new IllegalStateException("Drive session has already been initialized or stopped");
         try {
             if (backend == Backend.PEDRO) {
                 if (resumeFromAuto) manager = FollowerManager.forTeleOp(map);
@@ -31,12 +36,22 @@ public final class DriveManager {
                     manager = new FollowerManager(map, Constants.create(map));
                 }
                 drive = new PedroDrive(manager.follower());
-                manager.startManual();
             } else {
                 FollowerManager.clearHandoff();
                 direct = new DirectDrive(map);
                 drive = direct;
             }
+        } catch (RuntimeException failure) {
+            stop();
+            throw failure;
+        }
+    }
+
+    public void start() {
+        if (drive == null || started || stopped) throw new IllegalStateException("Drive session cannot start");
+        try {
+            if (manager != null) manager.startManual();
+            started = true;
         } catch (RuntimeException failure) {
             stop();
             throw failure;
@@ -55,7 +70,7 @@ public final class DriveManager {
 
     public void addTelemetry(Telemetry t) {
         t.addData("Drive backend", backend);
-        if (started) {
+        if (drive != null) {
             t.addData("Localization", manager == null ? "Direct drive"
                     : manager.resumedFromAuto() ? "From autonomous" : "Fresh follower");
         }

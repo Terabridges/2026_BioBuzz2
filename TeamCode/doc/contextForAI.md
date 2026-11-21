@@ -248,6 +248,8 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
 - **Stopping safely:** `stop()` methods use `try/finally` so one failing motor doesn't stop the others
   from being zeroed. Some OpModes catch `RuntimeException` in `start/loop`, call `stop()`, and rethrow.
   **`MainTeleOp` no longer does** (the user had it removed, 2026-11-19); its `stop()` keeps the `try/finally`.
+  Matt's `b423d61` wrapped MainTeleOp's `init()` in one; the 2026-11-21 merge into `feature/shootOnTheMove`
+  left it out to match the user's request (its job was to stop a half-initialized drive if `init()` threw).
 - **Tunable values:** `@Configurable` classes expose `public static` fields to Panels. Static fields
   **persist between OpModes** in the same app session. For example, `Shooter.stop()` deliberately resets
   `flywheelTargetRPM` for this reason.
@@ -264,6 +266,11 @@ utility/       Utility.clamp, EdgeDetector, AbsoluteAnalogEncoder, driveUtility/
   mean forward, right, and clockwise.**
 - **`DriveManager(Backend.DIRECT | Backend.PEDRO)`** owns one drivetrain per OpMode.
   `start(map, resumeFromAuto)` → `update()` → `stop()`. The `drive()` method returns the active `Drive`.
+  Since Matt's commit `b423d61` (2026-11-21) it can also be split: `initialize(map, resumeFromAuto)` at INIT
+  (builds the follower, so a fresh **Pinpoint calibrates while the robot sits still during INIT**) and `start()`
+  at START (starts manual driving). `start(map, resume)` does both. **MainTeleOp uses the split**, so without
+  auto the robot must be in the start corner **before INIT**, not just before START. `update()` does nothing
+  until `start()`.
   - `DirectDrive` mixes mecanum wheel powers itself. Field-centric reads only the Pinpoint heading.
   - `PedroDrive` sends `follower.manual(...)`. Pedro's convention is **left and counterclockwise
     positive**, so `PedroDrive` negates `right` and `turn`. It also has `driveOrHold*`, which holds position
