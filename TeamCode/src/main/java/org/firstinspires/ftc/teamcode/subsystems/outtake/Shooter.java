@@ -7,6 +7,8 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 import org.firstinspires.ftc.teamcode.utility.Utility;
@@ -17,6 +19,7 @@ public class Shooter implements Subsystem {
     //---------------- Hardware ----------------
     private DcMotorEx flywheel;
     private Servo hood;
+    private final HardwareMap.DeviceMapping<VoltageSensor> voltageSensors;
 
     //---------------- Software ----------------
     private final Utility util = new Utility();
@@ -32,6 +35,7 @@ public class Shooter implements Subsystem {
     public static double shootRPM = 2000;
     public static double rpmStep = 100;
     private final double maxRPM = 6000;
+    private static final double NOMINAL_VOLTAGE = 12.0;
 
     private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
     private final double SHOOTER_GEAR_RATIO = 1.0;
@@ -40,6 +44,9 @@ public class Shooter implements Subsystem {
     public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.000213;
     public static double integrationBounds = 200;
     public static double posTolerance = 100;
+    public static double shotSettleTimeMs = 150.0;
+    private final ElapsedTime shotSettleTimer = new ElapsedTime();
+    private boolean insideShotSpeedWindow;
     private boolean useFlywheelPID = true;
 
     public static double flywheelTargetRPM = 0;
@@ -50,22 +57,11 @@ public class Shooter implements Subsystem {
     private double hoodOffset = 0;
 
     private double newRPM = flywheelTargetRPM + flywheelOffset;
-    public static boolean enableFiltering = true;
-
-    // Weight of the latest sample in the experimental RPM filter.
-    public static double emaAlpha = 0.1;
-
-    private double emaFilteredRPM = 0.0;
-    private boolean filterInitialized = false;
-    private double currentRampedRPM = 0.0;
-    private long lastTime = System.nanoTime();
-    private boolean useExperimentalFlywheelControl;
-
-    public static double rpmRampRate = 2500.0;
 
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
+        voltageSensors = map.voltageSensor;
         flywheel = map.get(DcMotorEx.class, "flywheel");
         flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -148,38 +144,23 @@ public class Shooter implements Subsystem {
     }
 
 
-    public void setExperimentalFlywheelControl(boolean enabled) {
-        if (useExperimentalFlywheelControl == enabled) return;
-        useExperimentalFlywheelControl = enabled;
-        flywheelPID.reset();
-        filterInitialized = false;
+    public double setFlywheelPID(double targetRPM) {
+        flywheelPID.setPIDF(p, i, d, f);
         currentRPM = velToRPM(flywheel.getVelocity());
-        currentRampedRPM = Math.max(0, currentRPM);
-        lastTime = System.nanoTime();
+        double requestedPower = flywheelPID.calculate(currentRPM, targetRPM);
+        flywheelPow = util.clamp(requestedPower * batteryCompensation(), 0, flywheelMaxPower);
+        return flywheelPow;
     }
 
-    public double setFlywheelPID(double targetRPM) {
-        double rawRPM = velToRPM(flywheel.getVelocity());
-
-        if (useExperimentalFlywheelControl && enableFiltering) {
-            if (!filterInitialized) {
-                emaFilteredRPM = rawRPM;
-                filterInitialized = true;
-            } else {
-                emaFilteredRPM = (emaAlpha * rawRPM) + ((1.0 - emaAlpha) * emaFilteredRPM);
+    private double batteryCompensation() {
+        double batteryVoltage = Double.POSITIVE_INFINITY;
+        for (VoltageSensor sensor : voltageSensors) {
+            double voltage = sensor.getVoltage();
+            if (voltage > 0 && Double.isFinite(voltage)) {
+                batteryVoltage = Math.min(batteryVoltage, voltage);
             }
-            currentRPM = emaFilteredRPM;
-        } else {
-            currentRPM = rawRPM;
         }
-
-        double trueError = Math.abs(newRPM - currentRPM);
-
-        double dynamicP = useExperimentalFlywheelControl && trueError > 200 ? 0.001 : p;
-
-        flywheelPID.setPIDF(dynamicP, i, d, f);
-        flywheelPow = util.clamp(flywheelPID.calculate(currentRPM, targetRPM), 0, flywheelMaxPower);
-        return flywheelPow;
+        return Double.isFinite(batteryVoltage) ? NOMINAL_VOLTAGE / batteryVoltage : 1.0;
     }
 
     public void setFlywheelRPM(double target){
@@ -193,6 +174,16 @@ public class Shooter implements Subsystem {
     // True when the flywheel is on and within tolerance (RPM) of its target
     public boolean isAtRPM(double tolerance){
         return isShooting() && Math.abs(getTargetRPM() - currentRPM) <= tolerance;
+    }
+
+    public void updateShotSpeedReadiness(double tolerance) {
+        boolean insideWindow = isAtRPM(tolerance);
+        if (insideWindow && !insideShotSpeedWindow) shotSettleTimer.reset();
+        insideShotSpeedWindow = insideWindow;
+    }
+
+    public boolean isShotSpeedSettled() {
+        return insideShotSpeedWindow && shotSettleTimer.milliseconds() >= shotSettleTimeMs;
     }
 
     public void setTargetRPM(double rpm){
@@ -229,11 +220,9 @@ public class Shooter implements Subsystem {
         flywheelTargetRPM = 0;
         flywheelOffset = 0;
         newRPM = 0;
-        currentRampedRPM = 0;
-        lastTime = System.nanoTime();
         flywheelPow = 0;
         hoodChanged = false;
-        filterInitialized = false;
+        insideShotSpeedWindow = false;
         flywheelPID.reset();
         flywheel.setPower(0);
     }
@@ -245,30 +234,15 @@ public class Shooter implements Subsystem {
 
     @Override
     public void update(){
-        long now = System.nanoTime();
-        double dt = (now - lastTime) / 1e9;
-        lastTime = now;
-
         newRPM = flywheelTargetRPM + flywheelOffset;
 
         if (useFlywheelPID) {
             if (newRPM <= 0) {
                 flywheelPID.reset();
                 flywheelPow = 0;
-                currentRampedRPM = 0;
-                if (!useExperimentalFlywheelControl) currentRPM = velToRPM(flywheel.getVelocity());
-            } else if (!useExperimentalFlywheelControl) {
-                setFlywheelRPM(newRPM);
+                currentRPM = velToRPM(flywheel.getVelocity());
             } else {
-                if (currentRampedRPM < newRPM) {
-                    currentRampedRPM += (rpmRampRate * dt);
-                    if (currentRampedRPM > newRPM) currentRampedRPM = newRPM;
-                } else if (currentRampedRPM > newRPM) {
-                    currentRampedRPM -= (rpmRampRate * dt);
-                    if (currentRampedRPM < newRPM) currentRampedRPM = newRPM;
-                }
-
-                setFlywheelRPM(currentRampedRPM);
+                setFlywheelRPM(newRPM);
             }
         }
 

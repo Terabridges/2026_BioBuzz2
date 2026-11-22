@@ -89,7 +89,7 @@ public class Outtake implements Subsystem {
     }
 
     public boolean isFlywheelEnabled() { return flywheelEnabled; }
-    public boolean isAtShotSpeed() { return shooter.isAtRPM(rpmTolerance); }
+    public boolean isAtShotSpeed() { return flywheelEnabled && shooter.isShotSpeedSettled(); }
     public boolean isAutomaticFiring() { return automaticFiring; }
     public boolean isManualFiring() { return manualFiring; }
     public boolean isFiring() { return automaticFiring || manualFiring; }
@@ -135,6 +135,7 @@ public class Outtake implements Subsystem {
         double hood = shooterData.getAngleVal(distance);
         boolean valid = rpm != shooterData.INVALID && hood != shooterData.INVALID;
         shooter.setTargetRPM(flywheelEnabled && valid ? Math.max(0, rpm + rpmOffset) : 0);
+        shooter.updateShotSpeedReadiness(rpmTolerance);
         if (flywheelEnabled && valid) {
             double wantedHood = hood + hoodOffset;
             if (Double.isNaN(lastHood) || Math.abs(wantedHood - lastHood) > HOOD_DEADBAND) {

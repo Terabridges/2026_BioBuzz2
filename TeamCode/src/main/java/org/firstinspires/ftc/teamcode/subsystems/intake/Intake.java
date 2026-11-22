@@ -1,12 +1,9 @@
 package org.firstinspires.ftc.teamcode.subsystems.intake;
 
-import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.subsystems.Subsystem;
 
-@Configurable
 public class Intake implements Subsystem {
 
     //---------------- Subsystems ----------------
@@ -17,7 +14,6 @@ public class Intake implements Subsystem {
     public enum Mode { STOPPED, INTAKING, FULL, OUTTAKING, FIRING }
 
     private static final double HOLD_POWER = 0.3;
-    public static double shotFeedPower = 0.5;
     // Diagnostics can command the motors directly until a control or action requests a mode.
     private Mode requestedMode;
     private Mode mode = Mode.STOPPED;
@@ -67,8 +63,7 @@ public class Intake implements Subsystem {
             intakeOut();
         } else if (firing) {
             mode = Mode.FIRING;
-            spinner.setSpinnerSpinIn(Range.clip(shotFeedPower, 0.0, 1.0));
-            transfer.setTransferIn(1.0);
+            intakeIn(1.0);
         } else if (requestedMode == Mode.INTAKING) {
             if (spinner.isFull()) {
                 mode = Mode.FULL;

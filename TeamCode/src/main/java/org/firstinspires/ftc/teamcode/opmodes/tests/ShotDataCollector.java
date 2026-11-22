@@ -66,7 +66,6 @@ public class ShotDataCollector extends OpMode {
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
     public static double feedTimeMs = 1000;      // how long one shot runs the feed. Tune so exactly one ball goes
-    public static double feedPower = 1.0;        // spinner and transfer power while firing
     public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first: robot in the audience-left corner, back against the
@@ -267,7 +266,7 @@ public class ShotDataCollector extends OpMode {
         feeding = true;
         shotCount++;
         intake.transfer.openBlocker();
-        intake.intakeIn(feedPower);
+        intake.intakeIn(1.0);
         feedTimer.reset();
     }
 
@@ -283,7 +282,7 @@ public class ShotDataCollector extends OpMode {
 
         // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter.
         // Intaking runs the transfer slower (loadTransferPower) so balls aren't pushed hard against the blocker;
-        // a shot runs it at feedPower
+        // a shot runs it at full power
         boolean in = gamepad1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gamepad1.left_trigger > TRIGGER_THRESHOLD;
         if (in && !out) {

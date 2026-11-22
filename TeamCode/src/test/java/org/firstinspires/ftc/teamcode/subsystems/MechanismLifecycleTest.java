@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import org.firstinspires.ftc.teamcode.subsystems.outtake.Outtake;
 import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 /** Critical motor shutdown/restart checks with simulated hardware. */
@@ -33,6 +35,7 @@ public class MechanismLifecycleTest {
     private final Map<String, Double> powers = new HashMap<>();
     private final Map<String, Double> servoPositions = new HashMap<>();
     private double flywheelVelocity;
+    private double batteryVoltage;
     private String failingMotor;
     private final HardwareMap map = new HardwareMap(null, null) {
         @Override public <T> T get(Class<? extends T> type, String name) {
@@ -51,6 +54,9 @@ public class MechanismLifecycleTest {
                         if (method.getName().equals("getVelocity") && name.equals("flywheel")) {
                             return flywheelVelocity;
                         }
+                        if (method.getName().equals("getVoltage") && type == VoltageSensor.class) {
+                            return batteryVoltage;
+                        }
                         if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
                         if (method.getName().equals("equals")) return proxy == args[0];
                         if (method.getReturnType() == boolean.class) return false;
@@ -61,7 +67,17 @@ public class MechanismLifecycleTest {
         }
     };
 
-    @After public void resetTarget() { Shooter.flywheelTargetRPM = 0; }
+    private double previousShotSettleTimeMs;
+
+    @Before public void bypassShotSettleDelay() {
+        previousShotSettleTimeMs = Shooter.shotSettleTimeMs;
+        Shooter.shotSettleTimeMs = 0;
+    }
+
+    @After public void resetShooterSettings() {
+        Shooter.flywheelTargetRPM = 0;
+        Shooter.shotSettleTimeMs = previousShotSettleTimeMs;
+    }
 
     @Test public void intakeStopImmediatelyZerosBothMotorsAndClearsCommands() {
         Intake intake = new Intake(map);
@@ -131,6 +147,31 @@ public class MechanismLifecycleTest {
         assertTrue(outtake.turret.isTurretAtTarget());
     }
 
+    @Test public void flywheelCompensatesForBatteryVoltageAndClampsPower() {
+        map.voltageSensor.put("battery", map.get(VoltageSensor.class, "battery"));
+        Shooter shooter = new Shooter(map);
+        shooter.setTargetRPM(2000);
+        flywheelVelocity = shooter.RPMToVel(2000);
+
+        batteryVoltage = 12;
+        shooter.update();
+        double nominalPower = powers.get("flywheel");
+        assertEquals(Shooter.f * 2000, nominalPower, 1e-9);
+
+        batteryVoltage = 10;
+        shooter.update();
+        assertEquals(nominalPower * 1.2, powers.get("flywheel"), 1e-9);
+
+        batteryVoltage = Double.NaN;
+        shooter.update();
+        assertEquals(nominalPower, powers.get("flywheel"), 1e-9);
+
+        batteryVoltage = 10;
+        flywheelVelocity = 0;
+        shooter.update();
+        assertEquals(1.0, powers.get("flywheel"), 0);
+    }
+
     @Test public void shootingWaitsForPermissionAndReadinessThenFeedsThroughRpmDip() {
         Intake intake = new Intake(map);
         intake.init();
@@ -150,8 +191,13 @@ public class MechanismLifecycleTest {
         outtake.updateShooting(1);
         assertFalse(outtake.isFiring()); // Flywheel is still at zero measured RPM.
 
+        Shooter.shotSettleTimeMs = 150;
         flywheelVelocity = outtake.shooter.RPMToVel(outtake.shooter.getTargetRPM());
         outtake.shooter.update();
+        outtake.updateShooting(1);
+        assertFalse(outtake.isFiring());
+
+        Shooter.shotSettleTimeMs = 0;
         outtake.updateShooting(1);
         assertTrue(outtake.isFiring());
         intake.updateCommands(outtake.isFiring());

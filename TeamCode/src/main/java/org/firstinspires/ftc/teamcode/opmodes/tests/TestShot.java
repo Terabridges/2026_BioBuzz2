@@ -7,7 +7,6 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
@@ -50,9 +49,6 @@ public class TestShot extends OpMode {
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
     public static double feedTimeMs = 1000;     // how long one shot runs the feed. Same as the Shot Data Collector
-    public static double shotIntakePower = 0.5;
-    public static double shotTransferPower = 1.0;
-    public static boolean useExperimentalFlywheelControl = false;
     public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first, same as the Shot Data Collector: robot in the audience-left
@@ -155,7 +151,6 @@ public class TestShot extends OpMode {
     //---------------- loop ----------------
     @Override
     public void loop() {
-        shooter.setExperimentalFlywheelControl(useExperimentalFlywheelControl);
         updateButtons();
         driveControl.update();
 
@@ -164,6 +159,8 @@ public class TestShot extends OpMode {
         distance = manualDistance > 0 ? manualDistance : turretAim.getDistance();
 
         updateShooter();
+        shooter.updateShotSpeedReadiness(readyTolerance);
+        fire.update(gamepad1.right_bumper);
         updateTurret();
         updateFeed();
 
@@ -189,7 +186,6 @@ public class TestShot extends OpMode {
     //---------------- Methods ----------------
     private void updateButtons() {
         toggleFlywheel.update(gamepad1.a);
-        fire.update(gamepad1.right_bumper);
         toggleTracking.update(gamepad1.x);
         allianceButton.update(gamepad1.b);
     }
@@ -225,7 +221,7 @@ public class TestShot extends OpMode {
     }
 
     private boolean isReady() {
-        return flywheelOn && tableRPM > 0 && Math.abs(shooter.getCurrentRPM() - tableRPM) <= readyTolerance;
+        return flywheelOn && tableRPM > 0 && shooter.isShotSpeedSettled();
     }
 
     // One shot: open the blocker and run the feed for feedTimeMs, then close it again
@@ -244,8 +240,7 @@ public class TestShot extends OpMode {
                 intake.transfer.closeBlocker();
                 feeding = false;
             } else {
-                intake.spinner.setSpinnerSpinIn(Range.clip(shotIntakePower, 0.0, 1.0));
-                intake.transfer.setTransferIn(Range.clip(shotTransferPower, 0.0, 1.0));
+                intake.intakeIn(1.0);
             }
             return; // the triggers don't touch the intake mid-shot
         }
@@ -279,13 +274,9 @@ public class TestShot extends OpMode {
             joinedTelemetry.addData("Table RPM / hood", "%.0f / %.3f", tableRPM, tableHood);
         }
         joinedTelemetry.addData("Current RPM", "%.0f", shooter.getCurrentRPM());
-        joinedTelemetry.addData("Flywheel controller",
-                useExperimentalFlywheelControl ? "Experimental PIDF" : "Previous PIDF");
         joinedTelemetry.addData("Hood (sent)", "%.3f", appliedHood);
         joinedTelemetry.addData("Flywheel", flywheelOn ? (isReady() ? "READY" : "spinning up") : "off");
         joinedTelemetry.addData("Shots", shotCount);
-        joinedTelemetry.addData("Shot intake / transfer power", "%.2f / %.2f",
-                Range.clip(shotIntakePower, 0.0, 1.0), Range.clip(shotTransferPower, 0.0, 1.0));
         joinedTelemetry.addData("Turret", tracking
                 ? String.format(Locale.US, "tracking, %.1f deg", Math.toDegrees(turretAim.getTurretAngle()))
                 : "locked forward");
