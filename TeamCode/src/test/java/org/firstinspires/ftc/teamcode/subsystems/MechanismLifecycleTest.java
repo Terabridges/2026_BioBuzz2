@@ -68,6 +68,8 @@ public class MechanismLifecycleTest {
     };
 
     private double previousShotSettleTimeMs;
+    private final double previousAutoFeedPulseMs = Outtake.autoFeedPulseMs;
+    private final double previousAutoFeedPauseMs = Outtake.autoFeedPauseMs;
 
     @Before public void bypassShotSettleDelay() {
         previousShotSettleTimeMs = Shooter.shotSettleTimeMs;
@@ -77,6 +79,8 @@ public class MechanismLifecycleTest {
     @After public void resetShooterSettings() {
         Shooter.flywheelTargetRPM = 0;
         Shooter.shotSettleTimeMs = previousShotSettleTimeMs;
+        Outtake.autoFeedPulseMs = previousAutoFeedPulseMs;
+        Outtake.autoFeedPauseMs = previousAutoFeedPauseMs;
     }
 
     @Test public void intakeStopImmediatelyZerosBothMotorsAndClearsCommands() {
@@ -172,7 +176,7 @@ public class MechanismLifecycleTest {
         assertEquals(1.0, powers.get("flywheel"), 0);
     }
 
-    @Test public void shootingWaitsForPermissionAndReadinessThenFeedsThroughRpmDip() {
+    @Test public void shootingWaitsForReadinessAndKeepsBlockerOpenWhileRecovering() {
         Intake intake = new Intake(map);
         intake.init();
         double closedPosition = servoPositions.get("blocker");
@@ -200,14 +204,31 @@ public class MechanismLifecycleTest {
         Shooter.shotSettleTimeMs = 0;
         outtake.updateShooting(1);
         assertTrue(outtake.isFiring());
-        intake.updateCommands(outtake.isFiring());
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
         intake.update();
-        assertNotEquals(closedPosition, servoPositions.get("blocker"), 0);
+        double openPosition = servoPositions.get("blocker");
+        assertNotEquals(closedPosition, openPosition, 0);
+        assertEquals(1.0, powers.get("transfer"), 0);
 
+        Outtake.autoFeedPulseMs = 0;
+        Outtake.autoFeedPauseMs = 0;
         flywheelVelocity = 0;
         outtake.shooter.update();
         outtake.updateShooting(1);
+        outtake.updateShooting(1);
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
+        intake.update();
         assertTrue(outtake.isFiring());
+        assertIntakeStopped();
+        assertEquals(openPosition, servoPositions.get("blocker"), 0);
+
+        flywheelVelocity = outtake.shooter.RPMToVel(outtake.shooter.getTargetRPM());
+        outtake.shooter.update();
+        outtake.updateShooting(1);
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
+        intake.update();
+        assertEquals(1.0, powers.get("transfer"), 0);
+        assertEquals(openPosition, servoPositions.get("blocker"), 0);
         shot.stop();
         assertEquals(Action.Result.CANCELLED, shot.result());
         assertFalse(outtake.isFiring());
@@ -251,6 +272,20 @@ public class MechanismLifecycleTest {
         shot.update();
         assertFalse(shot.isFinished());
         Thread.sleep(225);
+        assertTrue(outtake.shouldRunFeedMotors());
+        shot.update();
+        assertFalse(shot.isFinished());
+
+        Outtake.autoFeedPulseMs = 0;
+        Outtake.autoFeedPauseMs = 0;
+        outtake.updateShooting(0);
+        shot.update();
+        assertFalse(shot.isFinished());
+        outtake.updateShooting(0);
+        assertTrue(outtake.shouldRunFeedMotors()); // Clear the transfer after the sensors read empty.
+        shot.update();
+        assertFalse(shot.isFinished());
+        outtake.updateShooting(0);
         shot.update();
 
         assertEquals(Action.Result.SUCCEEDED, shot.result());
@@ -303,6 +338,43 @@ public class MechanismLifecycleTest {
         outtake.updateShooting(0);
         assertFalse(outtake.isFiring());
         assertTrue(outtake.isFlywheelEnabled());
+    }
+
+    @Test public void teleopAutoShootFeedsThroughAnRpmDipAndCancelsOnX() {
+        Intake intake = new Intake(map);
+        intake.init();
+        Outtake outtake = preparedOuttake();
+        Gamepad driver = new Gamepad();
+        OuttakeControl control = new OuttakeControl(outtake, intake.spinner, driver, new Gamepad());
+        intake.spinner.setBallCount(4);
+        flywheelVelocity = outtake.shooter.RPMToVel(outtake.shooter.getTargetRPM());
+        outtake.shooter.update();
+        outtake.updateShooting(4);
+
+        driver.x = true;
+        control.update();
+        outtake.updateShooting(4);
+        assertTrue(outtake.shouldRunFeedMotors());
+
+        Outtake.autoFeedPulseMs = 0;
+        flywheelVelocity = 0;
+        outtake.shooter.update();
+        driver.x = false;
+        control.update();
+        outtake.updateShooting(4);
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
+        intake.update();
+        assertEquals(1.0, powers.get("spinner"), 0);
+        assertEquals(1.0, powers.get("transfer"), 0);
+        assertTrue(intake.transfer.isBlockerOpen());
+
+        driver.x = true;
+        control.update();
+        assertFalse(outtake.isFiring());
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
+        intake.update();
+        assertIntakeStopped();
+        assertFalse(intake.transfer.isBlockerOpen());
     }
 
     private Outtake preparedOuttake() {

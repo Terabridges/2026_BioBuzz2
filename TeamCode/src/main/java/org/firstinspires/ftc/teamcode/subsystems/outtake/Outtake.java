@@ -4,6 +4,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import java.util.function.Supplier;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
@@ -23,6 +24,8 @@ public class Outtake implements Subsystem {
     //---------------- Software ----------------
     public static double rpmTolerance = 50;
     public static double turretToleranceDeg = 3;
+    public static double autoFeedPulseMs = 80;
+    public static double autoFeedPauseMs = 40;
     private static final double HOOD_DEADBAND = 0.002;
 
     private final ShooterData shooterData = new ShooterData();
@@ -33,6 +36,10 @@ public class Outtake implements Subsystem {
     private boolean trackingEnabled;
     private boolean flywheelEnabled;
     private boolean automaticRequested;
+    private boolean pulsedFeedRequested;
+    private boolean clearFeedRequested;
+    private boolean feedPaused;
+    private final ElapsedTime feedPhaseTimer = new ElapsedTime();
     private boolean manualRequested;
     private boolean automaticFiring;
     private boolean manualFiring;
@@ -93,13 +100,27 @@ public class Outtake implements Subsystem {
     public boolean isAutomaticFiring() { return automaticFiring; }
     public boolean isManualFiring() { return manualFiring; }
     public boolean isFiring() { return automaticFiring || manualFiring; }
+    public boolean shouldRunFeedMotors() { return manualFiring || (automaticFiring && !feedPaused); }
 
-    /** Allow automatic feeding once the shot is ready. Intake applies the feed request. */
-    public void requestFire() { automaticRequested = true; }
+    public void requestFire() {
+        automaticRequested = true;
+        pulsedFeedRequested = false;
+        clearFeedRequested = false;
+        feedPaused = false;
+    }
+
+    public void requestPulsedFire(boolean clearFeed) {
+        automaticRequested = true;
+        pulsedFeedRequested = true;
+        clearFeedRequested = clearFeed;
+    }
 
     public void stopFiring() {
         automaticRequested = false;
+        pulsedFeedRequested = false;
+        clearFeedRequested = false;
         automaticFiring = false;
+        feedPaused = false;
     }
 
     public void setManualFireRequested(boolean requested) { manualRequested = requested; }
@@ -145,11 +166,18 @@ public class Outtake implements Subsystem {
         }
         turret.aimAt(aim.getTurretAngle() + Math.toRadians(turretOffsetDeg));
 
-        // RPM normally dips during feeding. Check it again only when starting another dump.
-        if (!automaticRequested || ballCount < 1 || !hasValidAutomaticShot()) {
+        if (!automaticRequested || !hasValidAutomaticShot()
+                || (!pulsedFeedRequested && ballCount < 1)) {
             automaticFiring = false;
-        } else if (isReadyToFire()) {
-            automaticFiring = true;
+            feedPaused = false;
+        } else if (!automaticFiring) {
+            if (ballCount > 0 && isReadyToFire()) {
+                automaticFiring = true;
+                feedPaused = false;
+                feedPhaseTimer.reset();
+            }
+        } else if (pulsedFeedRequested) {
+            updatePulsedFeed(ballCount);
         }
         if (!manualRequested || !flywheelEnabled || shooter.getTargetRPM() <= 0) {
             manualFiring = false;
@@ -158,6 +186,19 @@ public class Outtake implements Subsystem {
         }
 
         lights.setLights(Lights.colorForBallCount(ballCount));
+    }
+
+    private void updatePulsedFeed(int ballCount) {
+        if (feedPaused) {
+            if ((ballCount > 0 || clearFeedRequested)
+                    && feedPhaseTimer.milliseconds() >= autoFeedPauseMs && isReadyToFire()) {
+                feedPaused = false;
+                feedPhaseTimer.reset();
+            }
+        } else if (feedPhaseTimer.milliseconds() >= autoFeedPulseMs) {
+            feedPaused = true;
+            feedPhaseTimer.reset();
+        }
     }
 
 

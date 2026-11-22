@@ -36,7 +36,7 @@ public class Robot {
 
     public void update() {
         outtake.updateShooting(intake.spinner.getBallCount());
-        intake.updateCommands(outtake.isFiring());
+        intake.updateCommands(outtake.isFiring(), outtake.shouldRunFeedMotors());
         for (Subsystem s : subsystems) {
             s.update();
         }

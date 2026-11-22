@@ -58,12 +58,17 @@ public class Intake implements Subsystem {
 
     /** Resolve collection, driver eject override, and the outtake's feed request in one place. */
     public void updateCommands(boolean firing) {
+        updateCommands(firing, firing);
+    }
+
+    public void updateCommands(boolean firing, boolean runFeedMotors) {
         if (requestedMode == Mode.OUTTAKING) {
             mode = Mode.OUTTAKING;
             intakeOut();
         } else if (firing) {
             mode = Mode.FIRING;
-            intakeIn(1.0);
+            if (runFeedMotors) intakeIn(1.0);
+            else intakeStop();
         } else if (requestedMode == Mode.INTAKING) {
             if (spinner.isFull()) {
                 mode = Mode.FULL;

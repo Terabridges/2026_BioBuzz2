@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.actions.ShootAction;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
 import org.firstinspires.ftc.teamcode.control.drive.DriveControl;
@@ -28,7 +29,7 @@ import java.util.Locale;
  * the current distance, every loop, and nothing is saved. Drive anywhere, wait for READY, and fire.
  *
  * <p>Distance comes from odometry (TurretAim: turret pivot → the Cell for the half of the field the robot is on).
- * Set manualDistance in Panels to a tape-measured value to use that instead; 0 goes back to odometry.
+ * For single pulses, set manualDistance in Panels to a tape-measured value; 0 uses odometry.
  *
  * <p>Init: X = blue, B = red (default red).
  * <p>Gamepad 1 after Start:
@@ -36,9 +37,11 @@ import java.util.Locale;
  *   sticks            drive (Back = field-centric; no slow mode here, B is taken)
  *   B                 switch alliance (red / blue)
  *   A                 flywheel on/off (RPM and hood follow the tables while it's on)
- *   RB                fire one ball (only when the flywheel is at the table's RPM)
+ *   RB                run one feed pulse (requires flywheel readiness and the minimum pause)
+ *   X                 run the autonomous batch with odometry aiming
+ *   LB                end the test feed and close the blocker
  *   RT / LT           intake in / out, to load balls
- *   X                 turret: locked forward / tracking the Cell
+ *   D-pad up          turret: locked forward / tracking the Cell
  * </pre>
  */
 @Configurable
@@ -48,7 +51,8 @@ public class TestShot extends OpMode {
     //---------------- Tunable (Panels) ----------------
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
-    public static double feedTimeMs = 1000;     // how long one shot runs the feed. Same as the Shot Data Collector
+    public static double singlePulseMs = 80;
+    public static double minPulsePauseMs = 40;
     public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first, same as the Shot Data Collector: robot in the audience-left
@@ -72,7 +76,8 @@ public class TestShot extends OpMode {
     private Alliance alliance = Alliance.RED;
     private boolean flywheelOn = false;
     private boolean tracking = false;
-    private boolean feeding = false;
+    private enum FeedMode { IDLE, SINGLE_PULSE, BETWEEN_PULSES, BATCH }
+    private FeedMode feedMode = FeedMode.IDLE;
     private int shotCount = 0;
     private double distance = 0;
     private double tableRPM = 0;              // from ShooterData for the current distance
@@ -83,15 +88,19 @@ public class TestShot extends OpMode {
     private final ElapsedTime telemetryTimer = new ElapsedTime();
 
     private static final double TRIGGER_THRESHOLD = 0.1;
+    private static final double AUTO_SHOT_TIMEOUT_SECONDS = 5.0;
     // The table's hood value changes a tiny bit every time odometry moves. Only send it to the servo when it
     // has moved more than this, so the servo isn't rewritten every loop
     private static final double HOOD_DEADBAND = 0.002;
 
     //---------------- Buttons ----------------
     private final EdgeDetector toggleFlywheel = new EdgeDetector(() -> flywheelOn = !flywheelOn);
-    private final EdgeDetector fire = new EdgeDetector(this::fire);
+    private final EdgeDetector firePulse = new EdgeDetector(this::startSinglePulse);
+    private final EdgeDetector fireBatch = new EdgeDetector(this::startBatch);
+    private final EdgeDetector cancelFeed = new EdgeDetector(this::endFeed);
     private final EdgeDetector toggleTracking = new EdgeDetector(() -> tracking = !tracking);
     private final EdgeDetector allianceButton = new EdgeDetector(this::switchAlliance);
+    private ShootAction batchShot;
 
     //---------------- init ----------------
     @Override
@@ -102,6 +111,9 @@ public class TestShot extends OpMode {
         turret = robot.outtake.turret;
         intake = robot.intake;
         turretAim = new TurretAim(alliance);
+        robot.outtake.setMotionSource(() -> followerManager.follower().pose(),
+                () -> followerManager.follower().velocity());
+        batchShot = new ShootAction(robot.outtake, intake, () -> true, AUTO_SHOT_TIMEOUT_SECONDS);
 
         joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
     }
@@ -144,6 +156,7 @@ public class TestShot extends OpMode {
         };
         // B may still be held from picking red during init: don't let that count as a press
         allianceButton.wasPressed = gamepad1.b;
+        fireBatch.wasPressed = gamepad1.x;
         appliedHood = Double.NaN; // write the hood on the first loop
         telemetryTimer.reset();
     }
@@ -158,10 +171,14 @@ public class TestShot extends OpMode {
         turretAim.update(pose);
         distance = manualDistance > 0 ? manualDistance : turretAim.getDistance();
 
-        updateShooter();
-        shooter.updateShotSpeedReadiness(readyTolerance);
-        fire.update(gamepad1.right_bumper);
-        updateTurret();
+        if (feedMode != FeedMode.BATCH) {
+            updateShooter();
+            shooter.updateShotSpeedReadiness(readyTolerance);
+        }
+        firePulse.update(gamepad1.right_bumper);
+        fireBatch.update(gamepad1.x);
+        cancelFeed.update(gamepad1.left_bumper);
+        if (feedMode != FeedMode.BATCH) updateTurret();
         updateFeed();
 
         robot.update();
@@ -186,11 +203,12 @@ public class TestShot extends OpMode {
     //---------------- Methods ----------------
     private void updateButtons() {
         toggleFlywheel.update(gamepad1.a);
-        toggleTracking.update(gamepad1.x);
+        toggleTracking.update(gamepad1.dpad_up);
         allianceButton.update(gamepad1.b);
     }
 
     private void switchAlliance() {
+        if (feedMode == FeedMode.BATCH) endFeed();
         alliance = alliance == Alliance.RED ? Alliance.BLUE : Alliance.RED;
         turretAim.setAlliance(alliance);
     }
@@ -224,26 +242,57 @@ public class TestShot extends OpMode {
         return flywheelOn && tableRPM > 0 && shooter.isShotSpeedSettled();
     }
 
-    // One shot: open the blocker and run the feed for feedTimeMs, then close it again
-    private void fire() {
-        if (feeding || !isReady()) return;
-        feeding = true;
+    private void startSinglePulse() {
+        if (!isReady() || feedMode == FeedMode.SINGLE_PULSE || feedMode == FeedMode.BATCH) return;
+        if (feedMode == FeedMode.BETWEEN_PULSES && feedTimer.milliseconds() < minPulsePauseMs) return;
+        if (feedMode == FeedMode.IDLE) intake.transfer.openBlocker();
+        feedMode = FeedMode.SINGLE_PULSE;
         shotCount++;
-        intake.transfer.openBlocker();
         feedTimer.reset();
     }
 
+    private void startBatch() {
+        if (!flywheelOn || feedMode == FeedMode.SINGLE_PULSE || feedMode == FeedMode.BATCH
+                || intake.spinner.getBallCount() == 0) return;
+        endFeed();
+        robot.outtake.enableShooting(alliance, turretAim.getCell());
+        batchShot.start();
+        feedMode = FeedMode.BATCH;
+        shotCount++;
+    }
+
+    private void endFeed() {
+        if (feedMode == FeedMode.IDLE) return;
+        if (feedMode == FeedMode.BATCH) {
+            batchShot.stop();
+            robot.outtake.stopShooting();
+            appliedHood = Double.NaN;
+        } else {
+            intake.intakeStop();
+            intake.transfer.closeBlocker();
+        }
+        feedMode = FeedMode.IDLE;
+    }
+
     private void updateFeed() {
-        if (feeding) {
-            if (feedTimer.milliseconds() >= feedTimeMs) {
+        if (!flywheelOn) endFeed();
+        if (feedMode == FeedMode.BATCH) {
+            batchShot.update();
+            if (batchShot.isFinished()) endFeed();
+            return;
+        }
+        if (tableRPM <= 0) endFeed();
+        if (feedMode == FeedMode.SINGLE_PULSE) {
+            if (feedTimer.milliseconds() >= singlePulseMs) {
                 intake.intakeStop();
-                intake.transfer.closeBlocker();
-                feeding = false;
+                feedMode = FeedMode.BETWEEN_PULSES;
+                feedTimer.reset();
             } else {
                 intake.intakeIn(1.0);
             }
-            return; // the triggers don't touch the intake mid-shot
+            return;
         }
+        if (feedMode == FeedMode.BETWEEN_PULSES) return;
 
         // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter.
         // Run the transfer slower while loading so balls aren't pushed hard against the blocker.
@@ -265,20 +314,33 @@ public class TestShot extends OpMode {
     }
 
     private void addTelemetry(Pose pose) {
+        boolean autoBatch = feedMode == FeedMode.BATCH;
         joinedTelemetry.addData("Alliance (B to switch)", alliance);
-        joinedTelemetry.addData("Distance (in)", "%.1f  (%s)", distance,
-                manualDistance > 0 ? "manual" : "odometry, " + turretAim.getCell() + " Cell");
-        if (Double.isNaN(tableHood)) {
-            joinedTelemetry.addLine("Table: distance out of range, flywheel held off");
+        if (autoBatch) {
+            joinedTelemetry.addData("Distance (in)", "%.1f (auto aiming)", robot.outtake.getAim().getDistance());
+            joinedTelemetry.addData("Auto target RPM / hood", "%.0f / %.3f",
+                    shooter.getTargetRPM(), shooter.getHoodPos());
         } else {
-            joinedTelemetry.addData("Table RPM / hood", "%.0f / %.3f", tableRPM, tableHood);
+            joinedTelemetry.addData("Distance (in)", "%.1f  (%s)", distance,
+                manualDistance > 0 ? "manual" : "odometry, " + turretAim.getCell() + " Cell");
+            if (Double.isNaN(tableHood)) {
+                joinedTelemetry.addLine("Table: distance out of range, flywheel held off");
+            } else {
+                joinedTelemetry.addData("Table RPM / hood", "%.0f / %.3f", tableRPM, tableHood);
+            }
         }
         joinedTelemetry.addData("Current RPM", "%.0f", shooter.getCurrentRPM());
-        joinedTelemetry.addData("Hood (sent)", "%.3f", appliedHood);
-        joinedTelemetry.addData("Flywheel", flywheelOn ? (isReady() ? "READY" : "spinning up") : "off");
-        joinedTelemetry.addData("Shots", shotCount);
-        joinedTelemetry.addData("Turret", tracking
-                ? String.format(Locale.US, "tracking, %.1f deg", Math.toDegrees(turretAim.getTurretAngle()))
+        joinedTelemetry.addData("Hood (sent)", "%.3f", autoBatch ? shooter.getHoodPos() : appliedHood);
+        boolean ready = autoBatch ? robot.outtake.isAtShotSpeed() : isReady();
+        joinedTelemetry.addData("Flywheel", flywheelOn ? (ready ? "READY" : "spinning up") : "off");
+        if (autoBatch) joinedTelemetry.addData("Auto shot ready", robot.outtake.isReadyToFire());
+        joinedTelemetry.addData("Feed commands", shotCount);
+        joinedTelemetry.addData("Feed mode", feedMode);
+        joinedTelemetry.addData("Auto batch result", batchShot.result());
+        joinedTelemetry.addLine("RB: single pulse | X: auto batch | LB: close blocker");
+        TurretAim activeAim = autoBatch ? robot.outtake.getAim() : turretAim;
+        joinedTelemetry.addData("Turret", autoBatch || tracking
+                ? String.format(Locale.US, "tracking, %.1f deg", Math.toDegrees(activeAim.getTurretAngle()))
                 : "locked forward");
         joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg", pose.x(), pose.y(), Math.toDegrees(pose.heading()));
         joinedTelemetry.update();
