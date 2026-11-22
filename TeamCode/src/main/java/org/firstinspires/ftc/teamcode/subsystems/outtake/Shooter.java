@@ -50,6 +50,19 @@ public class Shooter implements Subsystem {
     private double hoodOffset = 0;
 
     private double newRPM = flywheelTargetRPM + flywheelOffset;
+    public static boolean enableFiltering = true;
+
+    // Weight of the latest sample in the experimental RPM filter.
+    public static double emaAlpha = 0.1;
+
+    private double emaFilteredRPM = 0.0;
+    private boolean filterInitialized = false;
+    private double currentRampedRPM = 0.0;
+    private long lastTime = System.nanoTime();
+    private boolean useExperimentalFlywheelControl;
+
+    public static double rpmRampRate = 2500.0;
+
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
@@ -135,11 +148,37 @@ public class Shooter implements Subsystem {
     }
 
 
-    public double setFlywheelPID(double targetRPM) {
-        flywheelPID.setPIDF(p, i, d, f);
+    public void setExperimentalFlywheelControl(boolean enabled) {
+        if (useExperimentalFlywheelControl == enabled) return;
+        useExperimentalFlywheelControl = enabled;
+        flywheelPID.reset();
+        filterInitialized = false;
         currentRPM = velToRPM(flywheel.getVelocity());
-        flywheelPow = flywheelPID.calculate(currentRPM, targetRPM);
-        flywheelPow = util.clamp(flywheelPow, 0, flywheelMaxPower);
+        currentRampedRPM = Math.max(0, currentRPM);
+        lastTime = System.nanoTime();
+    }
+
+    public double setFlywheelPID(double targetRPM) {
+        double rawRPM = velToRPM(flywheel.getVelocity());
+
+        if (useExperimentalFlywheelControl && enableFiltering) {
+            if (!filterInitialized) {
+                emaFilteredRPM = rawRPM;
+                filterInitialized = true;
+            } else {
+                emaFilteredRPM = (emaAlpha * rawRPM) + ((1.0 - emaAlpha) * emaFilteredRPM);
+            }
+            currentRPM = emaFilteredRPM;
+        } else {
+            currentRPM = rawRPM;
+        }
+
+        double trueError = Math.abs(newRPM - currentRPM);
+
+        double dynamicP = useExperimentalFlywheelControl && trueError > 200 ? 0.001 : p;
+
+        flywheelPID.setPIDF(dynamicP, i, d, f);
+        flywheelPow = util.clamp(flywheelPID.calculate(currentRPM, targetRPM), 0, flywheelMaxPower);
         return flywheelPow;
     }
 
@@ -190,8 +229,11 @@ public class Shooter implements Subsystem {
         flywheelTargetRPM = 0;
         flywheelOffset = 0;
         newRPM = 0;
+        currentRampedRPM = 0;
+        lastTime = System.nanoTime();
         flywheelPow = 0;
         hoodChanged = false;
+        filterInitialized = false;
         flywheelPID.reset();
         flywheel.setPower(0);
     }
@@ -203,15 +245,30 @@ public class Shooter implements Subsystem {
 
     @Override
     public void update(){
+        long now = System.nanoTime();
+        double dt = (now - lastTime) / 1e9;
+        lastTime = now;
 
         newRPM = flywheelTargetRPM + flywheelOffset;
+
         if (useFlywheelPID) {
             if (newRPM <= 0) {
                 flywheelPID.reset();
                 flywheelPow = 0;
-                currentRPM = velToRPM(flywheel.getVelocity());
-            } else {
+                currentRampedRPM = 0;
+                if (!useExperimentalFlywheelControl) currentRPM = velToRPM(flywheel.getVelocity());
+            } else if (!useExperimentalFlywheelControl) {
                 setFlywheelRPM(newRPM);
+            } else {
+                if (currentRampedRPM < newRPM) {
+                    currentRampedRPM += (rpmRampRate * dt);
+                    if (currentRampedRPM > newRPM) currentRampedRPM = newRPM;
+                } else if (currentRampedRPM > newRPM) {
+                    currentRampedRPM -= (rpmRampRate * dt);
+                    if (currentRampedRPM < newRPM) currentRampedRPM = newRPM;
+                }
+
+                setFlywheelRPM(currentRampedRPM);
             }
         }
 

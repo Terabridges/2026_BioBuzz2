@@ -7,6 +7,7 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
@@ -49,7 +50,9 @@ public class TestShot extends OpMode {
     public static double manualDistance = 0;    // inches; 0 = use odometry
     public static double readyTolerance = 50;   // RPM from target before a shot is allowed
     public static double feedTimeMs = 1000;     // how long one shot runs the feed. Same as the Shot Data Collector
-    public static double feedPower = 1.0;        // spinner and transfer power while firing
+    public static double shotIntakePower = 0.5;
+    public static double shotTransferPower = 1.0;
+    public static boolean useExperimentalFlywheelControl = false;
     public static double loadTransferPower = 0.45; // transfer power while intaking with RT (spinner follows the trigger)
 
     // Start pose when autonomous didn't run first, same as the Shot Data Collector: robot in the audience-left
@@ -152,6 +155,7 @@ public class TestShot extends OpMode {
     //---------------- loop ----------------
     @Override
     public void loop() {
+        shooter.setExperimentalFlywheelControl(useExperimentalFlywheelControl);
         updateButtons();
         driveControl.update();
 
@@ -230,7 +234,6 @@ public class TestShot extends OpMode {
         feeding = true;
         shotCount++;
         intake.transfer.openBlocker();
-        intake.intakeIn(feedPower);
         feedTimer.reset();
     }
 
@@ -240,13 +243,15 @@ public class TestShot extends OpMode {
                 intake.intakeStop();
                 intake.transfer.closeBlocker();
                 feeding = false;
+            } else {
+                intake.spinner.setSpinnerSpinIn(Range.clip(shotIntakePower, 0.0, 1.0));
+                intake.transfer.setTransferIn(Range.clip(shotTransferPower, 0.0, 1.0));
             }
             return; // the triggers don't touch the intake mid-shot
         }
 
         // Loading: RT in, LT out, both or neither stop. The blocker stays closed, so balls wait for the shooter.
-        // Intaking runs the transfer slower (loadTransferPower) so balls aren't pushed hard against the blocker;
-        // a shot runs it at feedPower. Same as the Shot Data Collector
+        // Run the transfer slower while loading so balls aren't pushed hard against the blocker.
         boolean in = gamepad1.right_trigger > TRIGGER_THRESHOLD;
         boolean out = gamepad1.left_trigger > TRIGGER_THRESHOLD;
         if (in && !out) {
@@ -274,9 +279,13 @@ public class TestShot extends OpMode {
             joinedTelemetry.addData("Table RPM / hood", "%.0f / %.3f", tableRPM, tableHood);
         }
         joinedTelemetry.addData("Current RPM", "%.0f", shooter.getCurrentRPM());
+        joinedTelemetry.addData("Flywheel controller",
+                useExperimentalFlywheelControl ? "Experimental PIDF" : "Previous PIDF");
         joinedTelemetry.addData("Hood (sent)", "%.3f", appliedHood);
         joinedTelemetry.addData("Flywheel", flywheelOn ? (isReady() ? "READY" : "spinning up") : "off");
         joinedTelemetry.addData("Shots", shotCount);
+        joinedTelemetry.addData("Shot intake / transfer power", "%.2f / %.2f",
+                Range.clip(shotIntakePower, 0.0, 1.0), Range.clip(shotTransferPower, 0.0, 1.0));
         joinedTelemetry.addData("Turret", tracking
                 ? String.format(Locale.US, "tracking, %.1f deg", Math.toDegrees(turretAim.getTurretAngle()))
                 : "locked forward");
