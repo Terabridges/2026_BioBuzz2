@@ -50,19 +50,6 @@ public class Shooter implements Subsystem {
     private double hoodOffset = 0;
 
     private double newRPM = flywheelTargetRPM + flywheelOffset;
-    public static boolean enableFiltering = true;
-
-    // HEAVY FILTER: 0.05 only trusts 5% of the new reading, smoothing the jagged encoder
-    // steps into a curve so your high D-gain doesn't freak out.
-    public static double emaAlpha = 0.1;
-
-    private double emaFilteredRPM = 0.0;
-    private boolean filterInitialized = false;
-    private double currentRampedRPM = 0.0;
-    private long lastTime = System.nanoTime();
-
-    public static double rpmRampRate = 2500.0;
-
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
@@ -149,37 +136,11 @@ public class Shooter implements Subsystem {
 
 
     public double setFlywheelPID(double targetRPM) {
-        double rawRPM = velToRPM(flywheel.getVelocity());
-
-        if (enableFiltering) {
-            if (!filterInitialized) {
-                emaFilteredRPM = rawRPM;
-                filterInitialized = true;
-            } else {
-                emaFilteredRPM = (emaAlpha * rawRPM) + ((1.0 - emaAlpha) * emaFilteredRPM);
-            }
-            currentRPM = emaFilteredRPM;
-        } else {
-            currentRPM = rawRPM;
-        }
-
-        double trueError = Math.abs(newRPM - currentRPM);
-
-        // 1. Dynamic P-Gain for smooth deceleration into the target
-        double dynamicP = p; // Defaults to your ultra-low 0.00005 for steady-state
-
-        if (trueError > 200) {
-            // At 1500 error, this commands max power.
-            // At 500 error, it smoothly curves down to ~70% power.
-            // At 100 error, it transitions seamlessly to your steady-state gains.
-            dynamicP = 0.001;
-        }
-
-        // 2. Standard PID Calculation
-        flywheelPID.setPIDF(dynamicP, i, d, f);
+        flywheelPID.setPIDF(p, i, d, f);
+        currentRPM = velToRPM(flywheel.getVelocity());
         flywheelPow = flywheelPID.calculate(currentRPM, targetRPM);
-
-        return util.clamp(flywheelPow, 0, flywheelMaxPower);
+        flywheelPow = util.clamp(flywheelPow, 0, flywheelMaxPower);
+        return flywheelPow;
     }
 
     public void setFlywheelRPM(double target){
@@ -229,11 +190,8 @@ public class Shooter implements Subsystem {
         flywheelTargetRPM = 0;
         flywheelOffset = 0;
         newRPM = 0;
-        currentRampedRPM = 0;
-        lastTime = System.nanoTime();
         flywheelPow = 0;
         hoodChanged = false;
-        filterInitialized = false;
         flywheelPID.reset();
         flywheel.setPower(0);
     }
@@ -245,27 +203,15 @@ public class Shooter implements Subsystem {
 
     @Override
     public void update(){
-        long now = System.nanoTime();
-        double dt = (now - lastTime) / 1e9;
-        lastTime = now;
 
         newRPM = flywheelTargetRPM + flywheelOffset;
-
         if (useFlywheelPID) {
             if (newRPM <= 0) {
                 flywheelPID.reset();
                 flywheelPow = 0;
-                currentRampedRPM = 0;
+                currentRPM = velToRPM(flywheel.getVelocity());
             } else {
-                if (currentRampedRPM < newRPM) {
-                    currentRampedRPM += (rpmRampRate * dt);
-                    if (currentRampedRPM > newRPM) currentRampedRPM = newRPM;
-                } else if (currentRampedRPM > newRPM) {
-                    currentRampedRPM -= (rpmRampRate * dt);
-                    if (currentRampedRPM < newRPM) currentRampedRPM = newRPM;
-                }
-
-                setFlywheelRPM(currentRampedRPM);
+                setFlywheelRPM(newRPM);
             }
         }
 
