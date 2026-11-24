@@ -89,7 +89,7 @@ public class Outtake implements Subsystem {
     }
 
     public boolean isFlywheelEnabled() { return flywheelEnabled; }
-    public boolean isAtShotSpeed() { return flywheelEnabled && shooter.isShotSpeedSettled(); }
+    public boolean isAtShotSpeed() { return flywheelEnabled; }
     public boolean isAutomaticFiring() { return automaticFiring; }
     public boolean isManualFiring() { return manualFiring; }
     public boolean isFiring() { return automaticFiring || manualFiring; }

@@ -173,6 +173,10 @@ public class OuttakeControl implements Control {
 
     @Override
     public void addTelemetry(Telemetry telemetry) {
+        telemetry.addData("Update Count", shooter.getUpdateCount());
+        telemetry.addData("Use PID", shooter.getUseFlywheel());
+        telemetry.addData("P / F", Shooter.p + " / " + Shooter.f);
+        telemetry.addData("Target / Power", shooter.getTargetRPM() + " / " + shooter.getCurrentPower());
         telemetry.addData("Distance (in)", "%.1f", turretAim.getRealDistance()); // Turret pivot to the real Cell, inches.
         // While moving, the tables use the distance to the led aim point instead
         if (turretAim.isLeading()) {

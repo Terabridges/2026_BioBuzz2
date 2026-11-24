@@ -17,8 +17,8 @@ import org.firstinspires.ftc.teamcode.utility.Utility;
 public class Shooter implements Subsystem {
 
     //---------------- Hardware ----------------
-    private DcMotorEx flywheel;
-    private Servo hood;
+    private final DcMotorEx flywheel;
+    private final Servo hood;
     private final HardwareMap.DeviceMapping<VoltageSensor> voltageSensors;
 
     //---------------- Software ----------------
@@ -37,11 +37,17 @@ public class Shooter implements Subsystem {
     private final double maxRPM = 6000;
     private static final double NOMINAL_VOLTAGE = 12.0;
 
-    private final double TICKS_PER_REV = 28.0; // goBILDA 5202/5203
-    private final double SHOOTER_GEAR_RATIO = 1.0;
+    public static double TICKS_PER_REV = 4000.0; // ELC Encoder V2 (4000 CPR)
+    public static double SHOOTER_GEAR_RATIO = 1.0;
+    public static double encoderSign = 1.0; // Flips decreasing ticks to positive outward RPM
+    public static double minSampleMs = 25.0;
+    public static double rpmSmoothing = 0.15; // 1.0 = raw 15ms sample, 0.25-0.40 = glass-smooth
+    private int lastPos = 0;
+    private long lastTimeNs = 0;
+    private boolean hasLastReading = false;
 
-    private PIDFController flywheelPID;
-    public static double p = 0.0014, i = 0.00008, d = 0.0, f = 0.000213;
+    private final PIDFController flywheelPID;
+    public static double p = 0.0045, i = 0.0, d = 0.00004, f = 0.000227;
     public static double integrationBounds = 200;
     public static double posTolerance = 100;
     public static double shotSettleTimeMs = 150.0;
@@ -55,15 +61,24 @@ public class Shooter implements Subsystem {
 
     private double flywheelOffset = 0;
     private double hoodOffset = 0;
-
     private double newRPM = flywheelTargetRPM + flywheelOffset;
+
+    // Position-based RPM tracking
+
+    // Voltage caching variables
+    private final ElapsedTime voltageTimer = new ElapsedTime();
+    private double cachedBatteryVoltage = 12.0;
+    public static double voltageRefreshRateMs = 250.0;
+
+    // Diagnostic heartbeat counter
+    private int updateCount = 0;
 
 
     //---------------- Constructor ----------------
     public Shooter(HardwareMap map) {
         voltageSensors = map.voltageSensor;
         flywheel = map.get(DcMotorEx.class, "flywheel");
-        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         hood = map.get(Servo.class, "hood");
@@ -130,7 +145,7 @@ public class Shooter implements Subsystem {
     public double getShootRPM(){return shootRPM;}
 
     public double getFlywheelVel() {
-        return flywheel.getVelocity();
+        return RPMToVel(currentRPM);
     }
 
     public double velToRPM(double tps) {
@@ -143,24 +158,55 @@ public class Shooter implements Subsystem {
         return tpm / 60;
     }
 
+    private double getPositionRPM() {
+        int currentPos = flywheel.getCurrentPosition();
+        long currentTimeNs = System.nanoTime();
+
+        if (!hasLastReading) {
+            lastPos = currentPos;
+            lastTimeNs = currentTimeNs;
+            hasLastReading = true;
+            return currentRPM;
+        }
+
+        long elapsedNs = currentTimeNs - lastTimeNs;
+        if (elapsedNs >= (long) (minSampleMs * 1_000_000.0)) {
+            double deltaTicks = (currentPos - lastPos) * encoderSign;
+            double deltaSeconds = elapsedNs / 1_000_000_000.0;
+            double measuredRPM = velToRPM(deltaTicks / deltaSeconds);
+
+            currentRPM = (rpmSmoothing * measuredRPM) + ((1.0 - rpmSmoothing) * currentRPM);
+
+            lastPos = currentPos;
+            lastTimeNs = currentTimeNs;
+        }
+
+        return currentRPM;
+    }
 
     public double setFlywheelPID(double targetRPM) {
         flywheelPID.setPIDF(p, i, d, f);
-        currentRPM = velToRPM(flywheel.getVelocity());
+        currentRPM = getPositionRPM();
         double requestedPower = flywheelPID.calculate(currentRPM, targetRPM);
         flywheelPow = util.clamp(requestedPower * batteryCompensation(), 0, flywheelMaxPower);
         return flywheelPow;
     }
 
     private double batteryCompensation() {
-        double batteryVoltage = Double.POSITIVE_INFINITY;
-        for (VoltageSensor sensor : voltageSensors) {
-            double voltage = sensor.getVoltage();
-            if (voltage > 0 && Double.isFinite(voltage)) {
-                batteryVoltage = Math.min(batteryVoltage, voltage);
+        if (voltageTimer.milliseconds() > voltageRefreshRateMs) {
+            double batteryVoltage = Double.POSITIVE_INFINITY;
+            for (VoltageSensor sensor : voltageSensors) {
+                double voltage = sensor.getVoltage();
+                if (voltage > 0 && Double.isFinite(voltage)) {
+                    batteryVoltage = Math.min(batteryVoltage, voltage);
+                }
             }
+            if (Double.isFinite(batteryVoltage)) {
+                cachedBatteryVoltage = batteryVoltage;
+            }
+            voltageTimer.reset();
         }
-        return Double.isFinite(batteryVoltage) ? NOMINAL_VOLTAGE / batteryVoltage : 1.0;
+        return NOMINAL_VOLTAGE / cachedBatteryVoltage;
     }
 
     public void setFlywheelRPM(double target){
@@ -198,6 +244,14 @@ public class Shooter implements Subsystem {
         return flywheelPow;
     }
 
+    public int getUpdateCount() {
+        return updateCount;
+    }
+
+    public double getCurrentPosition() {
+        return flywheel.getCurrentPosition() * encoderSign;
+    }
+
     public boolean getUseFlywheel(){return useFlywheelPID;}
 
     public void toggleUseFlywheel(){
@@ -221,6 +275,7 @@ public class Shooter implements Subsystem {
         flywheelOffset = 0;
         newRPM = 0;
         flywheelPow = 0;
+        hasLastReading = false;
         hoodChanged = false;
         insideShotSpeedWindow = false;
         flywheelPID.reset();
@@ -234,13 +289,14 @@ public class Shooter implements Subsystem {
 
     @Override
     public void update(){
+        updateCount++;
         newRPM = flywheelTargetRPM + flywheelOffset;
 
         if (useFlywheelPID) {
             if (newRPM <= 0) {
                 flywheelPID.reset();
                 flywheelPow = 0;
-                currentRPM = velToRPM(flywheel.getVelocity());
+                currentRPM = getPositionRPM();
             } else {
                 setFlywheelRPM(newRPM);
             }

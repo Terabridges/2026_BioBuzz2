@@ -5,6 +5,7 @@ import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.autonomous.framework.Alliance;
@@ -18,6 +19,10 @@ import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
+import org.psilynx.psikit.core.Logger;
+import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
+
+import java.util.List;
 
 /**
  * The match TeleOp. The buttons live in the Control classes (see doc/gamepadControls.md):
@@ -39,6 +44,7 @@ import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
  * </pre>
  */
 @Configurable
+@PsiKitAutoLog(rlogPort = 5802)
 @TeleOp(name = "MainTeleOp", group = "Main")
 public class MainTeleOp extends OpMode {
 
@@ -63,6 +69,8 @@ public class MainTeleOp extends OpMode {
     private JoinedTelemetry joinedTelemetry;
     private long lastTelemetry;
 
+    List<LynxModule> allHubs;
+
     private static Alliance alliance = Alliance.RED;
     private long imuCalibratingUntil;
 
@@ -72,6 +80,7 @@ public class MainTeleOp extends OpMode {
     private final EdgeDetector recalibrateImu = new EdgeDetector(this::recalibrateImu);
 
     @Override public void init() {
+        bulkCachingInitialization();
         drive = new DriveManager(DRIVE_BACKEND);
         drive.initialize(hardwareMap, true);
 
@@ -91,6 +100,7 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void init_loop() {
+        bulkCachingClear();
         switchAlliance.update(gamepad2.start);
         addInitTelemetry();
     }
@@ -115,6 +125,7 @@ public class MainTeleOp extends OpMode {
     }
 
     @Override public void loop() {
+        bulkCachingClear();
         long now = System.nanoTime();
 
         switchAlliance.update(gamepad2.start);
@@ -130,13 +141,16 @@ public class MainTeleOp extends OpMode {
         robot.update();
 
         if (now - lastTelemetry >= 200_000_000L) {
+            outtakeControl.addTelemetry(joinedTelemetry);
+            Logger.recordOutput("Target RPM", robot.outtake.shooter.getTargetRPM());
+            Logger.recordOutput("Current RPM", robot.outtake.shooter.getCurrentRPM());
             Pose pose = drive.follower().pose();
             joinedTelemetry.addData("Alliance", alliance);
             if (isCalibratingImu(now)) joinedTelemetry.addLine("CALIBRATING IMU: hold still");
             joinedTelemetry.addData("Pose", "(%.1f, %.1f) %.1f deg",
                     pose.x(), pose.y(), Math.toDegrees(pose.heading()));
             addVelocityTelemetry(pose);
-            outtakeControl.addTelemetry(joinedTelemetry);
+
             intakeControl.addTelemetry(joinedTelemetry);
             joinedTelemetry.update();
             lastTelemetry = now;
@@ -185,5 +199,19 @@ public class MainTeleOp extends OpMode {
 
     private void setPose(double x, double y, double headingDeg) {
         drive.follower().setPose(new Pose(x, y, Math.toRadians(headingDeg)));
+    }
+
+    private void bulkCachingInitialization() {
+        allHubs = hardwareMap.getAll(LynxModule.class);
+
+        for (LynxModule hub : allHubs) {
+            hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+        }
+    }
+
+    private void bulkCachingClear() {
+        for (LynxModule hub : allHubs) {
+            hub.clearBulkCache();
+        }
     }
 }
