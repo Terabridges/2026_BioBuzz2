@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.opmodes.teleop;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.JoinedTelemetry;
 import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.hardware.lynx.LynxModule;
@@ -18,10 +19,12 @@ import org.firstinspires.ftc.teamcode.control.intake.IntakeControl;
 import org.firstinspires.ftc.teamcode.control.outtake.OuttakeControl;
 import org.firstinspires.ftc.teamcode.control.vision.VisionControl;
 import org.firstinspires.ftc.teamcode.subsystems.Robot;
+import org.firstinspires.ftc.teamcode.subsystems.outtake.Shooter;
 import org.firstinspires.ftc.teamcode.utility.EdgeDetector;
 import org.psilynx.psikit.core.Logger;
 import org.psilynx.psikit.ftc.autolog.PsiKitAutoLog;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -50,13 +53,14 @@ public class MainTeleOp extends OpMode {
 
     private static final DriveManager.Backend DRIVE_BACKEND = DriveManager.Backend.PEDRO;
     private static final boolean USE_RATES = false;
-    private static final boolean START_FIELD_CENTRIC = false;
+    private static final boolean START_FIELD_CENTRIC = true;
 
     //---------------- Tunable (Panels) ----------------
     // Fresh follower starts in the audience-left corner with the wall offset on both axes.
     public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x() + RobotGeometry.wall;
     public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y() + RobotGeometry.wall;
-    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
+    // Temporary: start facing the audience when there is no autonomous handoff.
+    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading()) + 180.0;
     public static double imuCalibrateSec = 0.5;
 
     private Robot robot;
@@ -67,7 +71,11 @@ public class MainTeleOp extends OpMode {
     private IntakeControl intakeControl;
 
     private JoinedTelemetry joinedTelemetry;
+    private TelemetryManager panelsTelemetry;
+    private final List<String> panelsText = new ArrayList<>();
+    private Long previousPanelsIntervalMs;
     private long lastTelemetry;
+    private long lastLoopStartNs;
 
     List<LynxModule> allHubs;
 
@@ -95,7 +103,8 @@ public class MainTeleOp extends OpMode {
                 outtakeControl,
                 intakeControl};
 
-        joinedTelemetry = new JoinedTelemetry(PanelsTelemetry.INSTANCE.getFtcTelemetry(), telemetry);
+        panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+        joinedTelemetry = new JoinedTelemetry(panelsTelemetry.getWrapper(), telemetry);
         addInitTelemetry();
     }
 
@@ -111,7 +120,7 @@ public class MainTeleOp extends OpMode {
         telemetry.addData("Rates", USE_RATES);
         telemetry.addData("Field Centric", START_FIELD_CENTRIC);
         telemetry.addData("Start pose without auto", "(%.2f, %.2f) %.0f deg", startX, startY, startHeadingDeg);
-        telemetry.addLine("Without auto, place the robot in the audience-left corner before INIT, facing away from the audience");
+        telemetry.addLine("Without auto, place the robot in the audience-left corner at the heading shown above");
         telemetry.update();
     }
 
@@ -121,12 +130,18 @@ public class MainTeleOp extends OpMode {
 
         if (!drive.resumedFromAuto()) setPose(startX, startY, startHeadingDeg);
         driveControl = new DriveControl(drive.drive(), gamepad1, USE_RATES, START_FIELD_CENTRIC);
+        previousPanelsIntervalMs = panelsTelemetry.getUpdateInterval();
+        panelsTelemetry.setUpdateInterval(50);
+        panelsText.clear();
         lastTelemetry = System.nanoTime();
+        lastLoopStartNs = 0;
     }
 
     @Override public void loop() {
-        bulkCachingClear();
         long now = System.nanoTime();
+        long previousLoopStartNs = lastLoopStartNs;
+        lastLoopStartNs = now;
+        bulkCachingClear();
 
         switchAlliance.update(gamepad2.start);
         resetClose.update(gamepad2.x);
@@ -140,10 +155,17 @@ public class MainTeleOp extends OpMode {
         for (Control control : mechanismControls) control.update();
         robot.update();
 
-        if (now - lastTelemetry >= 200_000_000L) {
+        if (!panelsTelemetry.getShouldUpdateLines()) return;
+
+        Shooter shooter = robot.outtake.shooter;
+        boolean refreshText = now - lastTelemetry >= 200_000_000L;
+        if (refreshText) {
+            if (previousLoopStartNs != 0) {
+                joinedTelemetry.addData("Loop time (ms)", "%.2f", (now - previousLoopStartNs) / 1_000_000.0);
+            }
             outtakeControl.addTelemetry(joinedTelemetry);
-            Logger.recordOutput("Target RPM", robot.outtake.shooter.getTargetRPM());
-            Logger.recordOutput("Current RPM", robot.outtake.shooter.getCurrentRPM());
+            Logger.recordOutput("Target RPM", shooter.getTargetRPM());
+            Logger.recordOutput("Current RPM", shooter.getCurrentRPM());
             Pose pose = drive.follower().pose();
             joinedTelemetry.addData("Alliance", alliance);
             if (isCalibratingImu(now)) joinedTelemetry.addLine("CALIBRATING IMU: hold still");
@@ -152,15 +174,29 @@ public class MainTeleOp extends OpMode {
             addVelocityTelemetry(pose);
 
             intakeControl.addTelemetry(joinedTelemetry);
-            joinedTelemetry.update();
+            panelsText.clear();
+            panelsText.addAll(panelsTelemetry.getLines());
             lastTelemetry = now;
+        } else {
+            // Each graph update is a telemetry packet. Keep the latest text in it.
+            panelsTelemetry.getLines().addAll(panelsText);
         }
+        panelsTelemetry.addData("Target RPM", shooter.getTargetRPM());
+        panelsTelemetry.addData("Measured RPM", shooter.getCurrentRPM());
+        panelsTelemetry.addData("Raw RPM", shooter.getRawRPM());
+        panelsTelemetry.addData("Flywheel Power", shooter.getCurrentPower());
+        if (refreshText) joinedTelemetry.update();
+        else panelsTelemetry.update();
     }
 
     @Override public void stop() {
         try {
             if (robot != null) robot.stop();
         } finally {
+            if (previousPanelsIntervalMs != null) {
+                panelsTelemetry.setUpdateInterval(previousPanelsIntervalMs);
+                previousPanelsIntervalMs = null;
+            }
             if (drive != null) drive.stop();
         }
     }

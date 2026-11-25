@@ -31,6 +31,7 @@ public abstract class BaseAutoOpMode extends OpMode {
     private boolean started;
     private boolean failed;
     private final ElapsedTime autoTimer = new ElapsedTime();
+    private long lastLoopStartNs;
 
     protected abstract AutoConfig selectedConfig();
     protected abstract AutoRoutine createRoutine(AutoContext context);
@@ -88,6 +89,7 @@ public abstract class BaseAutoOpMode extends OpMode {
             routine = createRoutine(new AutoContext(
                     config, follower, robot, executionMode(), this::pathTestAdvanceDown));
             autoTimer.reset();
+            lastLoopStartNs = 0;
             routine.start();
             started = true;
         } catch (RuntimeException failure) {
@@ -98,6 +100,11 @@ public abstract class BaseAutoOpMode extends OpMode {
 
     @Override public final void loop() {
         if (stopped) return;
+        long now = System.nanoTime();
+        if (lastLoopStartNs != 0) {
+            telemetry.addData("Loop time (ms)", "%.2f", (now - lastLoopStartNs) / 1_000_000.0);
+        }
+        lastLoopStartNs = now;
         try {
             followerManager.update();
             if (routine != null && !routine.isFinished()) routine.update();

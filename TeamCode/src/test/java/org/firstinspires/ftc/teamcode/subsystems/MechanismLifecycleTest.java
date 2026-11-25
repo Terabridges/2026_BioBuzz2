@@ -35,6 +35,7 @@ public class MechanismLifecycleTest {
     private final Map<String, Double> powers = new HashMap<>();
     private final Map<String, Double> servoPositions = new HashMap<>();
     private double flywheelVelocity;
+    private int flywheelPosition;
     private double batteryVoltage;
     private String failingMotor;
     private final HardwareMap map = new HardwareMap(null, null) {
@@ -53,6 +54,9 @@ public class MechanismLifecycleTest {
                         }
                         if (method.getName().equals("getVelocity") && name.equals("flywheel")) {
                             return flywheelVelocity;
+                        }
+                        if (method.getName().equals("getCurrentPosition") && name.equals("flywheel")) {
+                            return flywheelPosition;
                         }
                         if (method.getName().equals("getVoltage") && type == VoltageSensor.class) {
                             return batteryVoltage;
@@ -145,6 +149,53 @@ public class MechanismLifecycleTest {
         assertThrows(IllegalStateException.class, outtake::stop);
         assertEquals(0, outtake.shooter.getTargetRPM(), 0);
         assertTrue(outtake.turret.isTurretAtTarget());
+    }
+
+    @Test public void shooterComparisonSettingsSwitchIndependently() {
+        boolean previousSmoothing = Shooter.enableRpmSmoothing;
+        boolean previousLegacy = Shooter.useLegacyPidGains;
+        boolean previousCachedVoltage = Shooter.useCachedVoltageCompensation;
+        double previousSampleMs = Shooter.minSampleMs;
+        double previousWeight = Shooter.rpmSmoothing;
+        double previousRefreshMs = Shooter.voltageRefreshRateMs;
+        try {
+            Shooter.enableRpmSmoothing = true;
+            Shooter.useLegacyPidGains = true;
+            Shooter.useCachedVoltageCompensation = true;
+            Shooter.minSampleMs = 0;
+            Shooter.rpmSmoothing = 0;
+            Shooter.voltageRefreshRateMs = Double.POSITIVE_INFINITY;
+            map.voltageSensor.put("battery", map.get(VoltageSensor.class, "battery"));
+            batteryVoltage = 10;
+            Shooter shooter = new Shooter(map);
+
+            shooter.setFlywheelPID(100);
+            assertEquals(0.0014, shooter.getActiveP(), 0);
+            assertEquals(0.000213, shooter.getActiveF(), 0);
+            Shooter.useLegacyPidGains = false;
+            shooter.setFlywheelPID(100);
+            double cachedPower = shooter.setFlywheelPID(100);
+            assertEquals(Shooter.p, shooter.getActiveP(), 0);
+            assertEquals(Shooter.f, shooter.getActiveF(), 0);
+
+            Shooter.useCachedVoltageCompensation = false;
+            assertEquals(cachedPower * 1.2, shooter.setFlywheelPID(100), 1e-9);
+            flywheelPosition = 100;
+            shooter.setFlywheelPID(100);
+            assertEquals(0, shooter.getCurrentRPM(), 0);
+
+            Shooter.enableRpmSmoothing = false;
+            flywheelPosition = 200;
+            shooter.setFlywheelPID(100);
+            assertTrue(shooter.getCurrentRPM() > 0);
+        } finally {
+            Shooter.enableRpmSmoothing = previousSmoothing;
+            Shooter.useLegacyPidGains = previousLegacy;
+            Shooter.useCachedVoltageCompensation = previousCachedVoltage;
+            Shooter.minSampleMs = previousSampleMs;
+            Shooter.rpmSmoothing = previousWeight;
+            Shooter.voltageRefreshRateMs = previousRefreshMs;
+        }
     }
 
     @Test public void flywheelCompensatesForBatteryVoltageAndClampsPower() {

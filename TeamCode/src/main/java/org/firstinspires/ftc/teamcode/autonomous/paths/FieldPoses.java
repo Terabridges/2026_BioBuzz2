@@ -45,7 +45,7 @@ public final class FieldPoses {
      * audience wall, facing +Y. Far = the rear-wall corner, back against the rear wall, facing -Y.
      * Either way the robot faces away from the wall behind it. Used for TeleOp pose resets.
      * Both axes include the {@link RobotGeometry#wall} gap, moved away from each wall, so red close is
-     * {@link #AUDIENCE_LEFT_CORNER_START} plus the gap: the same as MainTeleOp's start pose.
+     * {@link #AUDIENCE_LEFT_CORNER_START} plus the gap.
      */
     public static Pose allianceCorner(Alliance alliance, boolean far) {
         double x = alliance == Alliance.RED

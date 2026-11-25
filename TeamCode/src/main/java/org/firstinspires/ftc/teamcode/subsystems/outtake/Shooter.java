@@ -41,13 +41,17 @@ public class Shooter implements Subsystem {
     public static double SHOOTER_GEAR_RATIO = 1.0;
     public static double encoderSign = 1.0; // Flips decreasing ticks to positive outward RPM
     public static double minSampleMs = 25.0;
-    public static double rpmSmoothing = 0.15; // 1.0 = raw 15ms sample, 0.25-0.40 = glass-smooth
+    public static boolean enableRpmSmoothing = true;
+    public static double rpmSmoothing = 0.15; // Weight of the newest RPM sample.
     private int lastPos = 0;
     private long lastTimeNs = 0;
     private boolean hasLastReading = false;
 
     private final PIDFController flywheelPID;
     public static double p = 0.0045, i = 0.0, d = 0.00004, f = 0.000227;
+    public static boolean useLegacyPidGains = false;
+    private static final double LEGACY_P = 0.0014, LEGACY_I = 0.00008, LEGACY_D = 0.0, LEGACY_F = 0.000213;
+    private boolean usingLegacyPidGains;
     public static double integrationBounds = 200;
     public static double posTolerance = 100;
     public static double shotSettleTimeMs = 150.0;
@@ -57,6 +61,7 @@ public class Shooter implements Subsystem {
 
     public static double flywheelTargetRPM = 0;
     private double currentRPM = 0;
+    private double rawRPM;
     private double flywheelMaxPower = 1.0;
 
     private double flywheelOffset = 0;
@@ -67,7 +72,8 @@ public class Shooter implements Subsystem {
 
     // Voltage caching variables
     private final ElapsedTime voltageTimer = new ElapsedTime();
-    private double cachedBatteryVoltage = 12.0;
+    private double cachedBatteryVoltage = NOMINAL_VOLTAGE;
+    public static boolean useCachedVoltageCompensation = true;
     public static double voltageRefreshRateMs = 250.0;
 
     // Diagnostic heartbeat counter
@@ -173,9 +179,11 @@ public class Shooter implements Subsystem {
         if (elapsedNs >= (long) (minSampleMs * 1_000_000.0)) {
             double deltaTicks = (currentPos - lastPos) * encoderSign;
             double deltaSeconds = elapsedNs / 1_000_000_000.0;
-            double measuredRPM = velToRPM(deltaTicks / deltaSeconds);
+            rawRPM = velToRPM(deltaTicks / deltaSeconds);
 
-            currentRPM = (rpmSmoothing * measuredRPM) + ((1.0 - rpmSmoothing) * currentRPM);
+            currentRPM = enableRpmSmoothing
+                    ? (rpmSmoothing * rawRPM) + ((1.0 - rpmSmoothing) * currentRPM)
+                    : rawRPM;
 
             lastPos = currentPos;
             lastTimeNs = currentTimeNs;
@@ -185,7 +193,12 @@ public class Shooter implements Subsystem {
     }
 
     public double setFlywheelPID(double targetRPM) {
-        flywheelPID.setPIDF(p, i, d, f);
+        if (usingLegacyPidGains != useLegacyPidGains) {
+            flywheelPID.reset();
+            usingLegacyPidGains = useLegacyPidGains;
+        }
+        flywheelPID.setPIDF(getActiveP(), usingLegacyPidGains ? LEGACY_I : i,
+                usingLegacyPidGains ? LEGACY_D : d, getActiveF());
         currentRPM = getPositionRPM();
         double requestedPower = flywheelPID.calculate(currentRPM, targetRPM);
         flywheelPow = util.clamp(requestedPower * batteryCompensation(), 0, flywheelMaxPower);
@@ -193,20 +206,27 @@ public class Shooter implements Subsystem {
     }
 
     private double batteryCompensation() {
+        if (!useCachedVoltageCompensation) {
+            double batteryVoltage = readBatteryVoltage();
+            return Double.isFinite(batteryVoltage) ? NOMINAL_VOLTAGE / batteryVoltage : 1.0;
+        }
         if (voltageTimer.milliseconds() > voltageRefreshRateMs) {
-            double batteryVoltage = Double.POSITIVE_INFINITY;
-            for (VoltageSensor sensor : voltageSensors) {
-                double voltage = sensor.getVoltage();
-                if (voltage > 0 && Double.isFinite(voltage)) {
-                    batteryVoltage = Math.min(batteryVoltage, voltage);
-                }
-            }
+            double batteryVoltage = readBatteryVoltage();
             if (Double.isFinite(batteryVoltage)) {
                 cachedBatteryVoltage = batteryVoltage;
             }
             voltageTimer.reset();
         }
         return NOMINAL_VOLTAGE / cachedBatteryVoltage;
+    }
+
+    private double readBatteryVoltage() {
+        double batteryVoltage = Double.POSITIVE_INFINITY;
+        for (VoltageSensor sensor : voltageSensors) {
+            double voltage = sensor.getVoltage();
+            if (voltage > 0 && Double.isFinite(voltage)) batteryVoltage = Math.min(batteryVoltage, voltage);
+        }
+        return batteryVoltage;
     }
 
     public void setFlywheelRPM(double target){
@@ -216,6 +236,8 @@ public class Shooter implements Subsystem {
     public double getCurrentRPM(){
         return currentRPM;
     }
+
+    public double getRawRPM() { return rawRPM; }
 
     // True when the flywheel is on and within tolerance (RPM) of its target
     public boolean isAtRPM(double tolerance){
@@ -243,6 +265,9 @@ public class Shooter implements Subsystem {
     public double getCurrentPower(){
         return flywheelPow;
     }
+
+    public double getActiveP() { return usingLegacyPidGains ? LEGACY_P : p; }
+    public double getActiveF() { return usingLegacyPidGains ? LEGACY_F : f; }
 
     public int getUpdateCount() {
         return updateCount;
@@ -276,6 +301,7 @@ public class Shooter implements Subsystem {
         newRPM = 0;
         flywheelPow = 0;
         hasLastReading = false;
+        rawRPM = 0;
         hoodChanged = false;
         insideShotSpeedWindow = false;
         flywheelPID.reset();
