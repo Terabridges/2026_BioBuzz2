@@ -59,8 +59,7 @@ public class MainTeleOp extends OpMode {
     // Fresh follower starts in the audience-left corner with the wall offset on both axes.
     public static double startX = FieldPoses.AUDIENCE_LEFT_CORNER_START.x() + RobotGeometry.wall;
     public static double startY = FieldPoses.AUDIENCE_LEFT_CORNER_START.y() + RobotGeometry.wall;
-    // Temporary: start facing the audience when there is no autonomous handoff.
-    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading()) + 180.0;
+    public static double startHeadingDeg = Math.toDegrees(FieldPoses.AUDIENCE_LEFT_CORNER_START.heading());
     public static double imuCalibrateSec = 0.5;
 
     private Robot robot;
@@ -183,7 +182,7 @@ public class MainTeleOp extends OpMode {
         }
         panelsTelemetry.addData("Target RPM", shooter.getTargetRPM());
         panelsTelemetry.addData("Measured RPM", shooter.getCurrentRPM());
-        panelsTelemetry.addData("Raw RPM", shooter.getRawRPM());
+        panelsTelemetry.addData("Raw RPM", shooter.getCurrentRPM());
         panelsTelemetry.addData("Flywheel Power", shooter.getCurrentPower());
         if (refreshText) joinedTelemetry.update();
         else panelsTelemetry.update();
