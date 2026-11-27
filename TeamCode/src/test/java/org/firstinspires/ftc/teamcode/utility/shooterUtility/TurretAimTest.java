@@ -109,4 +109,83 @@ public class TurretAimTest {
         assertEquals(0.85, data.getShotTimeVal(200), 1e-6); // held flat past the last row
         assertEquals(data.INVALID, data.getShotTimeVal(0), 1e-9);
     }
+
+    //---------------- Dynamic Aperture / Target X Shifting ----------------
+
+    @Test public void targetXShiftsToMaximizeCrossSection() {
+        TurretAim aiming = new TurretAim(Alliance.RED);
+        double heading = Math.PI / 2.0;
+
+        // 1. Center Test
+        aiming.update(TurretAim.redCloseCellX, TurretAim.redCloseCellY - 30, heading);
+        double centerTargetX = aiming.getTargetX();
+
+        // 2. Left Side Test
+        aiming.update(12, TurretAim.redCloseCellX - 30, heading);
+        double leftTargetX = aiming.getTargetX();
+
+        // 3. Right Side Test
+        aiming.update(100, TurretAim.redCloseCellX - 30, heading);
+        double rightTargetX = aiming.getTargetX();
+
+        assertTrue("Target plane intersection should shift right when robot is left", leftTargetX > centerTargetX);
+        assertTrue("Target plane intersection should shift right when robot is right", rightTargetX < centerTargetX);
+    }
+
+    @Test public void printTargetXGrid() {
+        TurretAim aiming = new TurretAim(Alliance.RED);
+        double heading = Math.PI / 2.0;
+
+        System.out.println("\n=== TargetX Grid (Red Alliance) ===");
+        System.out.printf("%-10s", "Y \\ X");
+
+        for (int x = 0; x <= 144; x += 24) {
+            System.out.printf("%-10d", x);
+        }
+        System.out.println();
+
+        for (int y = 0; y <= 144; y += 24) {
+            System.out.printf("%-10d", y);
+
+            for (int x = 0; x <= 144; x += 24) {
+                aiming.update(x, y, heading);
+                System.out.printf("%-10.2f", aiming.getTargetX());
+            }
+            System.out.println();
+        }
+    }
+
+    @Test
+    public void distanceScaledSensitivityShiftsMoreWhenClose() {
+        TurretAim aiming = new TurretAim(Alliance.RED);
+        double heading = Math.PI / 2.0;
+
+        // Red Close Cell base coordinates: X = 59.25, Y = 56.2
+        // We put the robot at X = 48, creating a lateral offset of 11.25 inches.
+
+        // 1. Test at 24 inches depth
+        // Robot Y = 56.2 - 24 = 32.2
+        aiming.update(48, 32.2, heading);
+        double closeTargetX = aiming.getTargetX();
+
+        // 2. Test at 96 inches depth
+        // Robot Y = 56.2 - 96 = -39.8
+        aiming.update(48, -39.8, heading);
+        double farTargetX = aiming.getTargetX();
+
+        System.out.println("Base Target: 59.25");
+        System.out.println("TargetX at 24 inches deep: " + closeTargetX);
+        System.out.println("TargetX at 96 inches deep: " + farTargetX);
+
+        // --- The Logic Check ---
+        // Prove that the shift is more aggressive when the robot is closer to the hive.
+        // We avoid hardcoded expected values here because the exact math depends on
+        // the physical turretOffsetForward and turretOffsetLeft defined in TurretAim.
+        assertTrue("Target should shift more aggressively when close to the hive",
+                closeTargetX > farTargetX);
+
+        // Ensure it shifts in the correct direction (robot on left, target shifts right)
+        assertTrue("Target should shift to the right when robot is on the left",
+                closeTargetX > 59.25);
+    }
 }

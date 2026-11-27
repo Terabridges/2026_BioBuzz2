@@ -116,6 +116,8 @@ public class ShotDataCollector extends OpMode {
     private final EdgeDetector saveRow = new EdgeDetector(this::saveRow);
     private final EdgeDetector deleteRow = new EdgeDetector(this::deleteLastRow);
     private final EdgeDetector allianceButton = new EdgeDetector(this::switchAlliance);
+    private final EdgeDetector resetButton = new EdgeDetector(() -> followerManager.follower().setPose(new Pose(startX, startY, Math.toRadians(startHeadingDeg))));
+
 
     //---------------- init ----------------
     @Override
@@ -228,6 +230,7 @@ public class ShotDataCollector extends OpMode {
         saveRow.update(gamepad1.y);
         deleteRow.update(gamepad2.left_bumper); // gamepad 2, so it's hard to hit by accident
         allianceButton.update(gamepad1.b);
+        resetButton.update(gamepad2.a);
     }
 
     // Aims at the other alliance's hive from now on. Rows already saved keep the alliance they were saved with

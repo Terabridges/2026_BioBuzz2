@@ -34,30 +34,26 @@ public class ShooterData {
     //---------------- Data ----------------
     private void addRPMData() {
         rpmLUT.add(MIN_DISTANCE, MIN_RPM);
-        rpmLUT.add(12.8, 2070);
-        rpmLUT.add(20.6, 2080);
-        rpmLUT.add(28.8, 2120);
-        rpmLUT.add(36.4, 2140);
-        rpmLUT.add(41.1, 2190);
-        rpmLUT.add(48.5, 2230);
-        rpmLUT.add(54.6, 2250);
-        rpmLUT.add(66.3, 2320);
-        rpmLUT.add(68.3, 2370);
+        rpmLUT.add(22.6, 2030);
+        rpmLUT.add(30.0, 2070);
+        rpmLUT.add(37.3, 2080);
+        rpmLUT.add(41.7, 2080);
+        rpmLUT.add(48.5, 2150);
+        rpmLUT.add(51.8, 2150);
+        rpmLUT.add(65.0, 2270);
         rpmLUT.add(87.5, 2520);
         rpmLUT.add(MAX_DISTANCE, MAX_RPM);
     }
 
     private void addAngleData() {
         angleLUT.add(MIN_DISTANCE, MIN_ANGLE);
-        angleLUT.add(12.8, 0.400);
-        angleLUT.add(20.6, 0.470);
-        angleLUT.add(28.8, 0.580);
-        angleLUT.add(36.4, 0.700);
-        angleLUT.add(41.1, 0.750);
-        angleLUT.add(48.5, 0.760);
-        angleLUT.add(54.6, 0.770);
-        angleLUT.add(66.3, 0.790);
-        angleLUT.add(68.3, 0.820);
+        angleLUT.add(22.6, 0.490);
+        angleLUT.add(30.0, 0.610);
+        angleLUT.add(37.3, 0.680);
+        angleLUT.add(41.7, 0.710);
+        angleLUT.add(48.5, 0.780);
+        angleLUT.add(51.8, 0.780);
+        angleLUT.add(65.0, 0.800);
         angleLUT.add(87.5, 0.820);
         angleLUT.add(MAX_DISTANCE, MAX_ANGLE);
     }

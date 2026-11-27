@@ -29,6 +29,8 @@ public class TurretAim {
 
     public static double cellSwitchY = 72;    // the hive pivot line
     public static double cellSwitchBand = 6;  // inches past the line before switching Cells
+    public static double shiftDepthFactor = 7.5;
+    public static double maxTargetShift = 7.0;
 
     //---------------- Shooting zone (red; blue is mirrored across x = 72) ----------------
     // Where the robot is allowed to auto-shoot from: the two rows of tiles (24 in. each) behind the Cell it's
@@ -121,6 +123,28 @@ public class TurretAim {
         if (alliance == Alliance.BLUE) {
             targetX = FIELD_SIZE - targetX;
         }
+
+        double lateralOffset = targetX - turretX;
+
+        // Calculate the straight-line depth from the turret to the target plane
+        double depthOffset = Math.abs(targetY - turretY);
+
+        // Safety: prevent division by zero if the robot is sitting exactly on the target line
+        if (depthOffset < 1.0) depthOffset = 1.0;
+
+        // Calculate dynamic sensitivity (inversely proportional to distance)
+        // E.g., if depth is 24 inches, sensitivity is 12/24 = 0.5
+        // E.g., if depth is 96 inches, sensitivity is 12/96 = 0.125
+        double dynamicSensitivity = shiftDepthFactor / depthOffset;
+
+        // Multiply by your new dynamic sensitivity
+        double shiftAmount = lateralOffset * dynamicSensitivity;
+
+        // Clamp the shift so it never aims outside the physical walls
+        shiftAmount = Math.max(-maxTargetShift, Math.min(maxTargetShift, shiftAmount));
+
+        // Apply the shift to the target
+        targetX += shiftAmount;
 
         realDistance = Math.hypot(targetX - turretX, targetY - turretY);
         updateLead(vx, vy);
