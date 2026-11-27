@@ -7,9 +7,10 @@ import org.firstinspires.ftc.teamcode.actions.EnableShootingAction;
 import org.firstinspires.ftc.teamcode.actions.ShootAction;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoContext;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
+import org.firstinspires.ftc.teamcode.autonomous.framework.StartSide;
 import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 
-/** Stationary preload shot. The field placement must be in the chosen cell's shooting zone. */
+/** Stationary preload shot. Automatically targets the Close or Far cell based on StartSide. */
 public final class ShootPreloadRoutine implements AutoRoutine {
     private static final double SHOT_TIMEOUT_SECONDS = 5;
     private static final double SETTLE_SECONDS = 0.15;
@@ -22,8 +23,14 @@ public final class ShootPreloadRoutine implements AutoRoutine {
     private final ElapsedTime settleTimer = new ElapsedTime();
     private Result result = Result.READY;
 
-    public ShootPreloadRoutine(AutoContext context, TurretAim.Cell targetCell) {
+    public ShootPreloadRoutine(AutoContext context) {
         this.context = context;
+
+        // Dynamically select the target cell based on the starting side from AutoConfig
+        TurretAim.Cell targetCell = (context.config.startSide == StartSide.AUDIENCE)
+                ? TurretAim.Cell.CLOSE
+                : TurretAim.Cell.FAR;
+
         enableShooting = context.mechanismAction(robot ->
                 new EnableShootingAction(robot.outtake, context.config.alliance, targetCell));
         shoot = context.mechanismAction(robot ->

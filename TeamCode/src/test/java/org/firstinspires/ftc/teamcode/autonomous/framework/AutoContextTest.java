@@ -5,13 +5,12 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.actions.Action;
 import org.firstinspires.ftc.teamcode.autonomous.routines.ShootPreloadRoutine;
-import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 import org.junit.Test;
 
 /**
- * Computer-run unit tests, not a Driver Station OpMode. Verify that PATH_TEST never
- * constructs a real mechanism action and COMPETITION reports missing Robot hardware.
- * These test mode behavior, not physical movement.
+ - Computer-run unit tests, not a Driver Station OpMode. Verify that PATH_TEST never
+ - constructs a real mechanism action and COMPETITION reports missing Robot hardware.
+ - These test mode behavior, not physical movement.
  */
 public class AutoContextTest {
     private AutoContext context(AutoContext.Mode mode) {
@@ -45,7 +44,8 @@ public class AutoContextTest {
     }
 
     @Test public void preloadRoutinePathTestCompletesWithoutMechanismsOrOdometryReadiness() {
-        AutoRoutine routine = new ShootPreloadRoutine(context(AutoContext.Mode.PATH_TEST), TurretAim.Cell.CLOSE);
+        // Updated to use the new PreloadTipRoutine class
+        AutoRoutine routine = new ShootPreloadRoutine(context(AutoContext.Mode.PATH_TEST));
         routine.start();
         routine.update();
         routine.stop();

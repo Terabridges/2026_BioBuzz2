@@ -9,7 +9,6 @@ import org.firstinspires.ftc.teamcode.autonomous.framework.StartSide;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.routines.ShootPreloadRoutine;
 import org.firstinspires.ftc.teamcode.opmodes.autonomous.BaseAutoOpMode;
-import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 
 /** Exercises the same autonomous actions from the existing red corner test placement. */
 @Autonomous(name = "Auto Preload Test", group = "Tests")
@@ -20,7 +19,8 @@ public final class AutoPreloadTest extends BaseAutoOpMode {
     @Override protected AutoConfig selectedConfig() { return CONFIG; }
 
     @Override protected AutoRoutine createRoutine(AutoContext context) {
-        return new ShootPreloadRoutine(context, TurretAim.Cell.CLOSE);
+        // The routine now automatically pulls the TurretAim.Cell from the context's StartSide
+        return new ShootPreloadRoutine(context);
     }
 
     @Override protected void addSelectionTelemetry() {

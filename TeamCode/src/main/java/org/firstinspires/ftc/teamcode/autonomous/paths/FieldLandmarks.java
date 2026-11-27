@@ -64,6 +64,8 @@ public final class FieldLandmarks {
             new Pose(48.0, FIELD_SIZE_INCHES);
     public static final Pose FLOWER_REAR_RIGHT_WALL_ANCHOR =
             new Pose(96.0, FIELD_SIZE_INCHES);
+    public static final Pose FLOWER_PARK_LEFT_WALL_ANCHOR =
+            new Pose(0, 48.0);
 
     private FieldLandmarks() {}
 }

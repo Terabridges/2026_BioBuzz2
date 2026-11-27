@@ -1,7 +1,10 @@
 package org.firstinspires.ftc.teamcode.autonomous.routines;
 
+import android.annotation.SuppressLint;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
+import com.pedropathing.paths.Path;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.sfdev.assembly.state.StateMachine;
 import com.sfdev.assembly.state.StateMachineBuilder;
@@ -11,11 +14,12 @@ import org.firstinspires.ftc.teamcode.actions.ShootAction;
 import org.firstinspires.ftc.teamcode.utility.shooterUtility.TurretAim;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoContext;
 import org.firstinspires.ftc.teamcode.autonomous.framework.AutoRoutine;
+import org.firstinspires.ftc.teamcode.autonomous.framework.StartSide;
 import org.firstinspires.ftc.teamcode.autonomous.paths.FieldPoses;
 import org.firstinspires.ftc.teamcode.autonomous.paths.StallProtectedPathAction;
 import org.firstinspires.ftc.teamcode.autonomous.paths.TwoTipPaths;
 
-/** Red Audience Two Tip route, with a manual checkpoint before each movement in path test mode. */
+/** Unified Two Tip route handling both Close (Audience) and Far (Rear) start sides. */
 public final class TwoTipRoutine implements AutoRoutine {
     private static final double GARDEN_WAIT_SECONDS = 0.75;
     private static final double GARDEN_SHIMMY_SECONDS = 1.5;
@@ -24,34 +28,45 @@ public final class TwoTipRoutine implements AutoRoutine {
     private static final double SHIMMY_STEP_SECONDS = 0.25;
     private static final double GARDEN_SHIMMY_INCHES = 2.0;
     private static final double FLOWER_SHIMMY_INCHES = 1.0;
+    private static final double HIVE_WAIT_TIMEOUT_SECONDS = 5.0;
 
     private enum State {
+        WAIT_FOR_HIVE("Waiting for hive tip"),
         SHOOT_PRELOAD("Shoot preload"),
+
+        // Close Route Specific States
         TO_GARDEN("1/5 Start to Garden"),
         CROSS_FIELD("2/5 Garden to rear Flower lineup"),
         SHOOT_GARDEN("Shoot Garden collection"),
         TURN_TO_FLOWER("3/5 Turn toward rear Flower"),
-        TO_FLOWER_INTAKE("4/5 Approach rear Flower"),
+
+        // Shared / Far States
+        TO_FLOWER_INTAKE("Approach rear Flower"),
         SHOOT_FLOWER("Shoot Flower collection"),
-        TO_PARK("5/5 Rear Flower to park"),
+        TO_PARK("Rear Flower to park"),
         SHOT_TIMEOUT("Shot timed out"),
         DONE("");
 
         final String label;
-
-        State(String label) {
-            this.label = label;
-        }
+        State(String label) { this.label = label; }
     }
 
     private final AutoContext context;
     private final boolean pathTest;
+    private final boolean waitForHive;
+    private final boolean isClose;
+    private final TurretAim.Cell initialCell;
+    private final TurretAim.Cell secondaryCell;
+
     private final StallProtectedPathAction flowerApproach;
     private final StallProtectedPathAction gardenApproach;
+    private final Path parkPath;
+
     private final Action shoot;
     private final Action flowerCollect;
     private final Action gardenCollect;
     private final ElapsedTime collectionTimer = new ElapsedTime();
+    private final ElapsedTime waitTimer = new ElapsedTime();
     private Pose shimmyCenter;
     private int lastShimmyStep;
     private final StateMachine machine;
@@ -60,12 +75,35 @@ public final class TwoTipRoutine implements AutoRoutine {
     private boolean waitingForAdvance;
     private Result result = Result.READY;
 
-    public TwoTipRoutine(AutoContext context) {
+    private boolean isHiveTipped = false;
+
+    public TwoTipRoutine(AutoContext context, boolean waitForHive) {
         this.context = context;
-        pathTest = context.mode == AutoContext.Mode.PATH_TEST;
+        this.waitForHive = waitForHive;
+        this.pathTest = context.mode == AutoContext.Mode.PATH_TEST;
+        this.isClose = context.config.startSide == StartSide.AUDIENCE;
+
+        if (isClose) {
+            initialCell = TurretAim.Cell.CLOSE;
+            secondaryCell = TurretAim.Cell.FAR;
+        } else {
+            initialCell = TurretAim.Cell.FAR;
+            secondaryCell = TurretAim.Cell.CLOSE;
+        }
+
         TwoTipPaths paths = new TwoTipPaths(context.config.startPose);
-        flowerApproach = new StallProtectedPathAction(context.follower, paths.rearFlowerApproach);
-        gardenApproach = new StallProtectedPathAction(context.follower, paths.startToGarden);
+
+        // Map paths based on start side
+        if (isClose) {
+            gardenApproach = new StallProtectedPathAction(context.follower, paths.startToGarden);
+            flowerApproach = new StallProtectedPathAction(context.follower, paths.rearFlowerApproach);
+            parkPath = paths.flowerToPark;
+        } else {
+            gardenApproach = null; // Garden is skipped on the Far route
+            flowerApproach = new StallProtectedPathAction(context.follower, paths.farPreloadToRearFlower);
+            parkPath = paths.farRearFlowerToPark;
+        }
+
         shoot = context.mechanismAction(robot -> new ShootAction(robot.outtake, robot.intake, () -> true, 5.0));
         flowerCollect = context.mechanismAction(robot ->
                 new CollectAction(robot.intake, 4, FLOWER_WAIT_SECONDS + FLOWER_SHIMMY_SECONDS, 0.15));
@@ -78,19 +116,37 @@ public final class TwoTipRoutine implements AutoRoutine {
         Follower follower = context.follower;
         Pose turnTarget = FieldPoses.TwoTip.REAR_FLOWER_FACING_WALL;
         return new StateMachineBuilder()
+                .state(State.WAIT_FOR_HIVE)
+                .transition(() -> !waitForHive || isHiveTipped || waitTimer.seconds() > HIVE_WAIT_TIMEOUT_SECONDS || (pathTest && advancePressed),
+                        State.SHOOT_PRELOAD, () -> {
+                            context.runMechanism(robot -> robot.outtake.enableShooting(context.config.alliance, initialCell));
+                            shoot.start();
+                        })
+
                 .state(State.SHOOT_PRELOAD)
                 .loop(shoot::update)
                 .transition(this::shotTimedOut, State.SHOT_TIMEOUT)
-                .transition(() -> shotComplete() && (!pathTest || advancePressed), State.TO_GARDEN, () -> {
-                    context.runMechanism(robot -> robot.intake.collect());
-                    gardenApproach.start();
+                // BRANCH: Close goes to Garden. Far skips directly to the Flower.
+                .transition(() -> shotComplete() && (!pathTest || advancePressed),
+                        isClose ? State.TO_GARDEN : State.TO_FLOWER_INTAKE,
+                        () -> {
+                            context.runMechanism(robot -> {
+                                robot.intake.collect();
+                                if (!isClose) robot.outtake.setTargetCell(secondaryCell);
+                            });
+                            if (isClose) gardenApproach.start();
+                            else flowerApproach.start();
                 })
+
+                // ==========================================
+                // Close Route Specific States
+                // ==========================================
                 .state(State.TO_GARDEN)
-                .loop(gardenApproach::update)
-                .transition(() -> canLeaveIntakePath(gardenApproach.result() == Action.Result.SUCCEEDED
+                .loop(() -> { if (isClose) gardenApproach.update(); })
+                .transition(() -> isClose && canLeaveIntakePath(gardenApproach.result() == Action.Result.SUCCEEDED
                         || gardenApproach.result() == Action.Result.TIMED_OUT, gardenCollect,
                         GARDEN_WAIT_SECONDS, GARDEN_SHIMMY_INCHES), State.CROSS_FIELD, () -> {
-                    context.runMechanism(robot -> robot.outtake.setTargetCell(TurretAim.Cell.FAR));
+                    context.runMechanism(robot -> robot.outtake.setTargetCell(secondaryCell));
                     follower.follow(paths.gardenToRearFlowerLineup);
                 })
                 .state(State.CROSS_FIELD)
@@ -107,6 +163,10 @@ public final class TwoTipRoutine implements AutoRoutine {
                     });
                     flowerApproach.start();
                 })
+
+                // ==========================================
+                // Shared States (Far joins back in here)
+                // ==========================================
                 .state(State.TO_FLOWER_INTAKE)
                 .loop(flowerApproach::update)
                 // A stall stops the drivetrain, then collection continues just as it does at the endpoint.
@@ -117,7 +177,7 @@ public final class TwoTipRoutine implements AutoRoutine {
                 .state(State.SHOOT_FLOWER)
                 .loop(shoot::update)
                 .transition(this::shotTimedOut, State.SHOT_TIMEOUT)
-                .transition(this::shotComplete, State.TO_PARK, () -> follower.follow(paths.flowerToPark))
+                .transition(this::shotComplete, State.TO_PARK, () -> follower.follow(parkPath))
 
                 .state(State.TO_PARK)
                 .transition(() -> !follower.isBusy(), State.DONE, () -> context.runMechanism(robot -> {
@@ -180,7 +240,6 @@ public final class TwoTipRoutine implements AutoRoutine {
         if (movementFinished) {
             context.follower.stop();
             waitingForAdvance = true;
-            // Require a press after the robot has stopped, even if A was pressed this loop.
         }
         return false;
     }
@@ -196,9 +255,9 @@ public final class TwoTipRoutine implements AutoRoutine {
         waitingForAdvance = false;
         shimmyCenter = null;
         result = Result.RUNNING;
-        context.runMechanism(robot -> robot.outtake.enableShooting(context.config.alliance, TurretAim.Cell.CLOSE));
-        shoot.start();
-        machine.setState(State.SHOOT_PRELOAD);
+
+        waitTimer.reset();
+        machine.setState(State.WAIT_FOR_HIVE);
         machine.start();
         machine.update();
     }
@@ -209,6 +268,10 @@ public final class TwoTipRoutine implements AutoRoutine {
         boolean pressed = context.pathTestAdvanceDown();
         advancePressed = pressed && !previousAdvance;
         previousAdvance = pressed;
+
+        if (waitForHive && machine.getState() == State.WAIT_FOR_HIVE) {
+            context.runMechanism(robot -> isHiveTipped = robot.vision.hasHuskyLensTag());
+        }
 
         machine.update();
         if (machine.getState() == State.DONE) {
@@ -225,22 +288,33 @@ public final class TwoTipRoutine implements AutoRoutine {
         shoot.stop();
         gardenCollect.stop();
         flowerCollect.stop();
-        flowerApproach.stop();
-        gardenApproach.stop();
+        if (flowerApproach != null) flowerApproach.stop();
+        if (gardenApproach != null) gardenApproach.stop();
         if (!isFinished()) result = Result.CANCELLED;
     }
 
     @Override public Result result() { return result; }
 
+    @SuppressLint("DefaultLocale")
     @Override public String state() {
         if (result == Result.TIMED_OUT) return ((State) machine.getState()).label;
         if (result != Result.RUNNING) return result.name();
         State current = (State) machine.getState();
+
+        if (current == State.WAIT_FOR_HIVE) {
+            if (!waitForHive) return "Skipping hive wait";
+            if (pathTest) return "Press A to skip hive wait";
+            return String.format("Waiting for hive tip (%.1fs elapsed)", waitTimer.seconds());
+        }
         if (shimmyCenter != null) {
             String location = current == State.TO_GARDEN ? "Garden" : "Flower";
             return (lastShimmyStep < 0 ? "Collecting at " : "Shimmy at ") + location;
         }
-        if (pathTest && current == State.SHOOT_PRELOAD) return "Press A for " + State.TO_GARDEN.label;
+
+        if (pathTest && current == State.SHOOT_PRELOAD) {
+            return "Press A for " + (isClose ? State.TO_GARDEN.label : State.TO_FLOWER_INTAKE.label);
+        }
+
         if (waitingForAdvance) return "Press A to advance | Finished " + current.label;
         return "Running " + current.label;
     }
